@@ -1,0 +1,114 @@
+<div class="container mt-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>Manage Questions</h2>
+      <p class="text-muted">For Exam: <strong>{{ examTitle }}</strong></p>
+    </div>
+    <button class="btn btn-secondary" (click)="goBack()">← Back</button>
+  </div>
+
+  <div class="row">
+    <!-- Add/Edit Question Form -->
+    <div class="col-md-6">
+      <div class="card" id="questionForm">
+        <div class="card-header" [class.bg-primary]="!isEditing" [class.bg-warning]="isEditing">
+          <h5 class="text-white">{{ isEditing ? 'Edit Question' : 'Add New Question' }}</h5>
+        </div>
+        <div class="card-body">
+          <div *ngIf="message" class="alert" [class.alert-success]="!isError" [class.alert-danger]="isError">
+            {{ message }}
+          </div>
+
+          <form (ngSubmit)="isEditing ? onUpdate() : onSubmit()">
+            <div class="mb-3">
+              <label class="form-label">Question Text *</label>
+              <textarea class="form-control" [(ngModel)]="questionText" name="questionText" rows="2" required></textarea>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Option A *</label>
+                <input type="text" class="form-control" [(ngModel)]="optionA" name="optionA" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Option B *</label>
+                <input type="text" class="form-control" [(ngModel)]="optionB" name="optionB" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Option C</label>
+                <input type="text" class="form-control" [(ngModel)]="optionC" name="optionC">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Option D</label>
+                <input type="text" class="form-control" [(ngModel)]="optionD" name="optionD">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Correct Answer *</label>
+                <select class="form-control" [(ngModel)]="correctAnswer" name="correctAnswer" required>
+                  <option value="">Select</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" class="form-control" [(ngModel)]="marks" name="marks">
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn" [class.btn-primary]="!isEditing" [class.btn-warning]="isEditing" [disabled]="loading">
+                {{ loading ? 'Processing...' : (isEditing ? 'Update Question' : 'Add Question') }}
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="cancelEdit()" *ngIf="isEditing">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Questions List -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5>Questions Added ({{ questions.length }})</h5>
+        </div>
+        <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+          <div *ngIf="questions.length === 0" class="alert alert-info">
+            No questions added yet. Add your first question.
+          </div>
+          
+          <div *ngFor="let q of questions; let i = index" class="card mb-2">
+            <div class="card-body">
+              <div class="d-flex justify-content-between">
+                <strong>Q{{ i + 1 }}. {{ q.questionText }}</strong>
+                <div>
+                  <button class="btn btn-sm btn-warning me-1" (click)="editQuestion(q)">✏️ Edit</button>
+                  <button class="btn btn-sm btn-danger" (click)="deleteQuestion(q.id)">🗑️ Delete</button>
+                </div>
+              </div>
+              <div class="row mt-2 small">
+                <div class="col-6">A) {{ q.optionA }}</div>
+                <div class="col-6">B) {{ q.optionB }}</div>
+                <div class="col-6">C) {{ q.optionC }}</div>
+                <div class="col-6">D) {{ q.optionD }}</div>
+              </div>
+              <div class="mt-1">
+                <span class="badge bg-success">Answer: {{ q.correctAnswer }}</span>
+                <span class="badge bg-info ms-1">{{ q.marks }} marks</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

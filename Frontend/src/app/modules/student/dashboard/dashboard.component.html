@@ -1,0 +1,72 @@
+<div class="container mt-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>Welcome, {{ user?.fullName }}! 👋</h2>
+      <p class="text-muted">Ready to test your knowledge?</p>
+    </div>
+    <button class="btn btn-danger" (click)="logout()">Logout</button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center mt-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p>Loading exams...</p>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Exams Grid -->
+  <div *ngIf="!loading && !errorMessage">
+    <div *ngIf="exams.length === 0" class="alert alert-info">
+      No exams available at the moment. Please check back later.
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-4" *ngFor="let exam of exams">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <h5 class="card-title">{{ exam.title }}</h5>
+              <!-- Status Badge -->
+              <span class="badge" 
+                    [class.bg-success]="isExamAttempted(exam.id)"
+                    [class.bg-primary]="!isExamAttempted(exam.id)">
+                {{ isExamAttempted(exam.id) ? '✓ Completed' : 'Available' }}
+              </span>
+            </div>
+            <p class="card-text text-muted">{{ exam.description }}</p>
+            <hr>
+            <div class="d-flex justify-content-between mb-3">
+              <span>⏱️ {{ exam.durationInMinutes }} min</span>
+              <span>⭐ {{ exam.totalMarks }} marks</span>
+            </div>
+            
+            <!-- Button changes based on status -->
+            <button *ngIf="!isExamAttempted(exam.id)" 
+                    class="btn btn-primary w-100" 
+                    (click)="startExam(exam.id)">
+              Start Exam →
+            </button>
+            
+            <button *ngIf="isExamAttempted(exam.id)" 
+                    class="btn btn-secondary w-100" 
+                    disabled>
+              ✓ Already Completed
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Link -->
+  <div class="mt-4 text-center">
+    <a routerLink="/results" class="btn btn-link">View My Results</a>
+  </div>
+</div>

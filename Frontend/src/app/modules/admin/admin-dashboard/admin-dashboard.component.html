@@ -1,0 +1,79 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>Admin Dashboard</h2>
+      <p class="text-muted">Welcome back, {{ user?.fullName }}!</p>
+    </div>
+    <button class="btn btn-danger" (click)="logout()">Logout</button>
+  </div>
+
+  <div class="mb-4">
+    <button class="btn btn-primary btn-lg" (click)="createExam()">
+      + Create New Exam
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">All Exams</h5>
+    </div>
+    <div class="card-body">
+      <div *ngIf="loading" class="text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+
+      <div *ngIf="!loading && exams.length === 0" class="alert alert-info">
+        No exams created yet. Click "Create New Exam" to get started.
+      </div>
+
+      <div class="table-responsive" *ngIf="!loading && exams.length > 0">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Duration</th>
+              <th>Total Marks</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let exam of exams">
+              <td>{{ exam.id }}</td>
+              <td>{{ exam.title }}</td>
+              <td>{{ exam.durationInMinutes }} min</td>
+              <td>{{ exam.totalMarks }}</td>
+              <td>
+                <span class="badge" [class.bg-success]="exam.isPublished" [class.bg-warning]="!exam.isPublished">
+                  {{ exam.isPublished ? 'Published' : 'Draft' }}
+                </span>
+                </td>
+              <td>
+                <button class="btn btn-sm btn-warning me-1" (click)="editExam(exam.id)">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-sm btn-info me-1" (click)="addQuestions(exam.id)">
+                  + Questions
+                </button>
+                <button class="btn btn-sm btn-success" (click)="publishExam(exam.id)" [disabled]="exam.isPublished">
+                  Publish
+                </button>
+                <button class="btn btn-sm btn-danger" (click)="deleteExam(exam.id)">
+    🗑️ Delete
+  </button>
+   <button class="btn btn-sm btn-secondary ms-1" (click)="viewResults(exam.id)">
+    📊 Results
+  </button>
+                
+                
+</td>
+             </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

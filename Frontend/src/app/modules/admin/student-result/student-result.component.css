@@ -1,0 +1,15 @@
+.bg-success-light {
+  background-color: #d4edda;
+}
+
+.bg-danger-light {
+  background-color: #f8d7da;
+}
+
+.card {
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}

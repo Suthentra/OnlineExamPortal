@@ -1,0 +1,26 @@
+﻿CREATE TABLE Questions
+(
+    Id INT PRIMARY KEY IDENTITY(1,1),
+
+    QuestionText NVARCHAR(MAX) NOT NULL,
+
+    OptionA NVARCHAR(255) NOT NULL,
+
+    OptionB NVARCHAR(255) NOT NULL,
+
+    OptionC NVARCHAR(255) NOT NULL,
+
+    OptionD NVARCHAR(255) NOT NULL,
+
+    CorrectAnswer NVARCHAR(10) NOT NULL,
+
+    Marks INT NOT NULL,
+
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+
+    ExamId INT NOT NULL,
+
+    CONSTRAINT FK_Questions_Exams
+        FOREIGN KEY (ExamId)
+        REFERENCES Exams(Id)
+);

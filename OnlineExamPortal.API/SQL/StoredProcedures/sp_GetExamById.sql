@@ -1,0 +1,7 @@
+﻿CREATE PROCEDURE sp_GetExamById
+    @Id INT
+AS
+BEGIN
+    SELECT * FROM Exams
+    WHERE Id = @Id;
+END

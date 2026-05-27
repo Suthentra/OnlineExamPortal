@@ -1,0 +1,18 @@
+# Visual Studio files
+.vs/
+*.vsidx
+*.suo
+*.user
+
+# Backend
+API/bin/
+API/obj/
+
+# Frontend
+Frontend/node_modules/
+Frontend/.angular/
+Frontend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,52 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>My Results</h2>
+    <button class="btn btn-danger" (click)="logout()">Logout</button>
+  </div>
+
+  <div *ngIf="loading" class="text-center mt-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p>Loading your results...</p>
+  </div>
+
+  <div *ngIf="!loading && results.length === 0" class="alert alert-info">
+    You haven't taken any exams yet.
+  </div>
+
+  <div *ngIf="!loading && results.length > 0">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Exam Name</th>
+            <th>Score</th>
+            <th>Percentage</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of results">
+            <td>{{ r.examTitle }}</td>
+            <td>{{ r.score }}/{{ r.totalMarks }}</td>
+            <td [ngClass]="{'text-success': r.percentage >= 40, 'text-danger': r.percentage < 40}">
+              {{ r.percentage }}%
+            </td>
+            <td>
+              <span class="badge" [ngClass]="{'bg-success': r.isPassed, 'bg-danger': !r.isPassed}">
+                {{ r.isPassed ? 'Passed' : 'Failed' }}
+              </span>
+            </td>
+            <td>{{ r.submittedAt | date:'medium' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <a routerLink="/dashboard" class="btn btn-link">← Back to Dashboard</a>
+  </div>
+</div>

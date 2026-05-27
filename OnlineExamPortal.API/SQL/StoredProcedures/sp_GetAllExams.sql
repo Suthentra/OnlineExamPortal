@@ -1,0 +1,5 @@
+﻿CREATE PROCEDURE sp_GetAllExams
+AS
+BEGIN
+    SELECT * FROM Exams;
+END
