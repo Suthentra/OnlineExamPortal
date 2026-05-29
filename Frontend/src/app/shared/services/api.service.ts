@@ -153,6 +153,13 @@ updateQuestion(id: number, data: any) {
   });
 }
 
+getStudentResultDetail(attemptId: number) {
+  const token = this.auth.getToken();
+  return this.http.get(`${this.apiUrl}/Results/${attemptId}`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
+
 getResultByAttempt(attemptId: number) {
   const token = this.auth.getToken();
   return this.http.get(`${this.apiUrl}/Results/${attemptId}`, {
@@ -170,6 +177,12 @@ checkExamAttempted(examId: number) {
   const token = this.auth.getToken();
   const studentId = this.auth.getUser()?.userId;
   return this.http.get(`${this.apiUrl}/ExamAttempt/check/${studentId}/${examId}`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
+saveExamResult(data: any) {
+  const token = this.auth.getToken();
+  return this.http.post(`${this.apiUrl}/ExamAttempt/save-result`, data, {
     headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
   });
 }

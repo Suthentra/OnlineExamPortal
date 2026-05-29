@@ -9,7 +9,8 @@ import { ResultsComponent } from './modules/student/results/results.component';
 import { AdminDashboardComponent } from './modules/admin/admin-dashboard/admin-dashboard.component';
 import { CreateExamComponent } from './modules/admin/create-exam/create-exam.component';
 import { AddQuestionsComponent } from './modules/admin/add-questions/add-questions.component';
-
+import { ExamResultsComponent } from './modules/admin/exam-results/exam-results.component';
+import { StudentResultComponent } from './modules/admin/student-result/student-result.component';
 const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
@@ -20,7 +21,10 @@ const routes: Routes = [
   { path: 'admin', component: AdminDashboardComponent },
   { path: 'admin/create-exam', component: CreateExamComponent },
   { path: 'admin/add-questions/:id', component: AddQuestionsComponent },
-  { path: 'admin/edit-exam/:id', component: EditExamComponent }
+  { path: 'admin/edit-exam/:id', component: EditExamComponent },
+  { path: 'admin/exam-results/:id', component: ExamResultsComponent },      
+  { path: 'admin/student-result/:id', component: StudentResultComponent },  
+  { path: 'result-detail/:id', component: StudentResultComponent }
 ];
 
 @NgModule({

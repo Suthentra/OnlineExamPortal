@@ -7,20 +7,24 @@ BEGIN
     DECLARE @Percentage DECIMAL(5,2);
     DECLARE @IsPassed BIT;
     
-    -- Calculate total score
-    SELECT @TotalScore = ISNULL(SUM(MarksObtained), 0)
-    FROM Answers WHERE ExamAttemptId = @AttemptId;
+    -- Calculate total score from Answers table (using Marks from Questions table)
+    SELECT @TotalScore = ISNULL(SUM(q.Marks), 0)
+    FROM Answers a
+    INNER JOIN Questions q ON a.QuestionId = q.Id
+    WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;
     
     -- Get total marks for the exam
-    SELECT @TotalMarks = e.TotalMarks
-    FROM ExamAttempts ea
-    JOIN Exams e ON ea.ExamId = e.Id
-    WHERE ea.Id = @AttemptId;
+    SELECT @TotalMarks = ISNULL(SUM(q.Marks), 0)
+    FROM Questions q
+    WHERE q.ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);
     
     -- Calculate percentage
-    SET @Percentage = (@TotalScore * 100.0) / NULLIF(@TotalMarks, 0);
+    IF @TotalMarks > 0
+        SET @Percentage = (@TotalScore * 100.0) / @TotalMarks;
+    ELSE
+        SET @Percentage = 0;
     
-    -- Determine if passed (assuming 40% passing marks)
+    -- Determine if passed (40% passing marks)
     SET @IsPassed = CASE WHEN @Percentage >= 40 THEN 1 ELSE 0 END;
     
     -- Update exam attempt
@@ -32,3 +36,4 @@ BEGIN
         Percentage = @Percentage
     WHERE Id = @AttemptId;
 END
+GO

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using OnlineExamPortal.API.Models.DTOs.ExamAttempt;
 using OnlineExamPortal.API.Repositories.Interface;
 using System.Security.Claims;
@@ -8,21 +9,26 @@ namespace OnlineExamPortal.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
     public class ExamAttemptController : ControllerBase
     {
         private readonly IExamAttemptRepository _examAttemptRepository;
         private readonly IExamRepository _examRepository;
         private readonly IQuestionRepository _questionRepository;
+        private readonly string _connectionString;
 
         public ExamAttemptController(
             IExamAttemptRepository examAttemptRepository,
             IExamRepository examRepository,
-            IQuestionRepository questionRepository)
+            IQuestionRepository questionRepository,
+            IConfiguration configuration)
         {
             _examAttemptRepository = examAttemptRepository;
             _examRepository = examRepository;
             _questionRepository = questionRepository;
+            _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
+
+            // Debug - check if connection string is loaded
+            Console.WriteLine($"Connection String loaded: {_connectionString != null}");
         }
 
         // POST: api/ExamAttempt/start
@@ -30,13 +36,11 @@ namespace OnlineExamPortal.API.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> StartExam([FromBody] StartExamRequestDto request)
         {
-            // Get logged-in student ID
             var studentId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
             if (studentId != request.StudentId)
                 return Forbid();
 
-            // Check if exam exists and is published
             var exam = await _examRepository.GetByIdAsync(request.ExamId);
             if (exam == null)
                 return NotFound(new { message = "Exam not found" });
@@ -44,15 +48,11 @@ namespace OnlineExamPortal.API.Controllers
             if (!exam.IsPublished)
                 return BadRequest(new { message = "Exam is not published yet" });
 
-            // Check if student already attempted
             var hasAttempted = await _examAttemptRepository.HasStudentAttemptedExamAsync(studentId, request.ExamId);
             if (hasAttempted)
                 return BadRequest(new { message = "You have already attempted this exam" });
 
-            // Start the exam
             var attempt = await _examAttemptRepository.StartExamAsync(studentId, request.ExamId);
-
-            // Get questions for this exam
             var questions = await _questionRepository.GetByExamIdAsync(request.ExamId);
 
             var response = new ExamAttemptResponseDto
@@ -84,19 +84,45 @@ namespace OnlineExamPortal.API.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitAnswer([FromBody] SubmitAnswerRequestDto request)
         {
-            var attempt = await _examAttemptRepository.GetAttemptByIdAsync(request.AttemptId);
-            if (attempt == null)
-                return NotFound(new { message = "Attempt not found" });
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
 
-            if (attempt.Status != "InProgress")
-                return BadRequest(new { message = "Exam is already submitted or expired" });
+                    // Get correct answer
+                    string getCorrectSql = "SELECT CorrectAnswer FROM Questions WHERE Id = @QuestionId";
+                    SqlCommand getCmd = new SqlCommand(getCorrectSql, conn);
+                    getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                    string correctAnswer = (await getCmd.ExecuteScalarAsync())?.ToString() ?? "";
 
-            var answer = await _examAttemptRepository.SubmitAnswerAsync(
-                request.AttemptId,
-                request.QuestionId,
-                request.SelectedOption);
+                    bool isCorrect = request.SelectedOption == correctAnswer;
 
-            return Ok(new { message = "Answer submitted successfully", isCorrect = answer.IsCorrect });
+                    // Insert answer
+                    string insertSql = @"
+                        IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
+                            UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
+                            WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
+                        ELSE
+                            INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOption, IsCorrect)
+                            VALUES (@AttemptId, @QuestionId, @SelectedOption, @IsCorrect)
+                    ";
+
+                    SqlCommand insertCmd = new SqlCommand(insertSql, conn);
+                    insertCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
+                    insertCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                    insertCmd.Parameters.AddWithValue("@SelectedOption", request.SelectedOption);
+                    insertCmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
+
+                    await insertCmd.ExecuteNonQueryAsync();
+
+                    return Ok(new { message = "Answer saved", isCorrect = isCorrect });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // POST: api/ExamAttempt/submit/{attemptId}
@@ -104,68 +130,51 @@ namespace OnlineExamPortal.API.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitExam(int attemptId)
         {
-            var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
-            if (attempt == null)
-                return NotFound(new { message = "Attempt not found" });
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
 
-            if (attempt.Status != "InProgress")
-                return BadRequest(new { message = "Exam is already submitted" });
+                    // Calculate score and update
+                    string sql = @"
+                        DECLARE @TotalScore INT = ISNULL((SELECT SUM(q.Marks) 
+                            FROM Answers a JOIN Questions q ON a.QuestionId = q.Id 
+                            WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1), 0);
+                        
+                        DECLARE @TotalMarks INT = ISNULL((SELECT SUM(Marks) 
+                            FROM Questions 
+                            WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId)), 0);
+                        
+                        DECLARE @Percentage DECIMAL(5,2) = CASE 
+                            WHEN @TotalMarks > 0 THEN (@TotalScore * 100.0) / @TotalMarks 
+                            ELSE 0 END;
+                        
+                        DECLARE @IsPassed BIT = CASE WHEN @Percentage >= 40 THEN 1 ELSE 0 END;
+                        
+                        UPDATE ExamAttempts 
+                        SET SubmittedAt = GETDATE(),
+                            Status = 'Completed',
+                            Score = @TotalScore,
+                            Percentage = @Percentage,
+                            IsPassed = @IsPassed
+                        WHERE Id = @AttemptId;
+                    ";
 
-            var submittedAttempt = await _examAttemptRepository.SubmitExamAsync(attemptId);
-            var result = await _examAttemptRepository.CalculateResultAsync(attemptId);
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                    await cmd.ExecuteNonQueryAsync();
 
-            return Ok(result);
+                    return Ok(new { message = "Exam submitted successfully" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        // GET: api/ExamAttempt/{attemptId}
-        [HttpGet("{attemptId}")]
-        public async Task<IActionResult> GetAttemptById(int attemptId)
-        {
-            var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
-            if (attempt == null)
-                return NotFound(new { message = "Attempt not found" });
-
-            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            if (currentUserId != attempt.UserId && currentUserRole != "Admin")
-                return Forbid();
-
-            return Ok(attempt);
-        }
-
-        // GET: api/ExamAttempt/student/{studentId}
-        [HttpGet("student/{studentId}")]
-        public async Task<IActionResult> GetAttemptsByStudentId(int studentId)
-        {
-            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            if (currentUserId != studentId && currentUserRole != "Admin")
-                return Forbid();
-
-            var attempts = await _examAttemptRepository.GetAttemptsByStudentIdAsync(studentId);
-            return Ok(attempts);
-        }
-
-        // GET: api/ExamAttempt/result/{attemptId}
-        [HttpGet("result/{attemptId}")]
-        public async Task<IActionResult> GetResult(int attemptId)
-        {
-            var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
-            if (attempt == null)
-                return NotFound(new { message = "Attempt not found" });
-
-            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            if (currentUserId != attempt.UserId && currentUserRole != "Admin")
-                return Forbid();
-
-            var result = await _examAttemptRepository.CalculateResultAsync(attemptId);
-            return Ok(result);
-        }
-
+        // GET: api/ExamAttempt/check/{studentId}/{examId}
         [HttpGet("check/{studentId}/{examId}")]
         [Authorize]
         public async Task<IActionResult> CheckExamAttempted(int studentId, int examId)

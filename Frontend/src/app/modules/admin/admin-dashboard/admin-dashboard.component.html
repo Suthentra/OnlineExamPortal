@@ -1,79 +1,179 @@
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h2>Admin Dashboard</h2>
-      <p class="text-muted">Welcome back, {{ user?.fullName }}!</p>
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo-area">
+      <i class="fas fa-graduation-cap"></i>
+      <span>ExamPortal</span>
     </div>
-    <button class="btn btn-danger" (click)="logout()">Logout</button>
-  </div>
-
-  <div class="mb-4">
-    <button class="btn btn-primary btn-lg" (click)="createExam()">
-      + Create New Exam
-    </button>
-  </div>
-
-  <div class="card">
-    <div class="card-header bg-dark text-white">
-      <h5 class="mb-0">All Exams</h5>
+    <nav>
+      <a class="nav-link" [class.active]="activeTab === 'dashboard'" (click)="activeTab = 'dashboard'">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a class="nav-link" [class.active]="activeTab === 'exams'" (click)="activeTab = 'exams'">
+        <i class="fas fa-file-alt"></i> Exams
+      </a>
+      <a class="nav-link" [class.active]="activeTab === 'results'" (click)="activeTab = 'results'">
+        <i class="fas fa-chart-line"></i> Results
+      </a>
+    </nav>
+    <div class="user-info">
+      <i class="fas fa-user-circle"></i>
+      <div>
+        <div>{{ user?.fullName }}</div>
+        <small>Administrator</small>
+      </div>
     </div>
-    <div class="card-body">
-      <div *ngIf="loading" class="text-center">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="top-bar">
+      <div>
+        <h2>Welcome back, {{ user?.fullName }}! 👋</h2>
+        <p class="text-muted">Here's what's happening with your exams today.</p>
+      </div>
+      <button class="btn-logout" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </header>
+
+    <div class="content">
+      <!-- ========== DASHBOARD TAB ========== -->
+      <div *ngIf="activeTab === 'dashboard'">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ exams.length }}</h3>
+              <p>Total Exams</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ totalStudents }}</h3>
+              <p>Total Students</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <i class="fas fa-question-circle"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ totalQuestions }}</h3>
+              <p>Total Questions</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ averageScore }}%</h3>
+              <p>Average Score</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Exams -->
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Recent Exams</h3>
+            <button class="btn-primary" (click)="createExam()">
+              <i class="fas fa-plus"></i> Create Exam
+            </button>
+          </div>
+          <div class="exam-list">
+            <div *ngFor="let exam of exams.slice(0, 4)" class="exam-item">
+              <div class="exam-info">
+                <strong class="exam-title">{{ exam.title }}</strong>
+                <p>{{ exam.description | slice:0:60 }}...</p>
+                <small>{{ exam.durationInMinutes }} mins | {{ exam.totalMarks }} marks</small>
+              </div>
+              <span class="badge" [class.published]="exam.isPublished" [class.draft]="!exam.isPublished">
+                {{ exam.isPublished ? 'Published' : 'Draft' }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div *ngIf="!loading && exams.length === 0" class="alert alert-info">
-        No exams created yet. Click "Create New Exam" to get started.
+      <!-- ========== EXAMS TAB ========== -->
+      <div *ngIf="activeTab === 'exams'">
+        <div class="section-header">
+          <h3>All Exams</h3>
+          <button class="btn-primary" (click)="createExam()">
+            <i class="fas fa-plus"></i> Create New Exam
+          </button>
+        </div>
+
+        <div *ngIf="loading" class="text-center mt-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+
+        <div class="exam-grid" *ngIf="!loading">
+          <div *ngFor="let exam of exams" class="exam-card">
+            <div class="exam-header">
+              <div class="exam-icon">📝</div>
+              <div class="exam-status" [class.published-status]="exam.isPublished" [class.draft-status]="!exam.isPublished">
+                {{ exam.isPublished ? 'Published' : 'Draft' }}
+              </div>
+            </div>
+            <div class="exam-body">
+              <h4 class="exam-title">{{ exam.title }}</h4>
+              <p>{{ exam.description | slice:0:80 }}...</p>
+              <div class="exam-meta">
+                <span><i class="fas fa-clock"></i> {{ exam.durationInMinutes }} min</span>
+                <span><i class="fas fa-star"></i> {{ exam.totalMarks }} marks</span>
+              </div>
+            </div>
+            <div class="exam-footer">
+              <button class="btn-icon" (click)="editExam(exam.id)" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-icon" (click)="addQuestions(exam.id)" title="Add Questions">
+                <i class="fas fa-plus-circle"></i>
+              </button>
+              <button class="btn-icon" *ngIf="!exam.isPublished" (click)="publishExam(exam.id)" title="Publish">
+                <i class="fas fa-globe"></i>
+              </button>
+              <button class="btn-icon" (click)="viewResults(exam.id)" title="Results">
+                <i class="fas fa-chart-bar"></i>
+              </button>
+              <button class="btn-icon delete" (click)="deleteExam(exam.id)" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="table-responsive" *ngIf="!loading && exams.length > 0">
-        <table class="table table-bordered table-hover">
-          <thead class="table-light">
-            <tr>
-              <th>ID</th>
-              <th>Title</th>
-              <th>Duration</th>
-              <th>Total Marks</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let exam of exams">
-              <td>{{ exam.id }}</td>
-              <td>{{ exam.title }}</td>
-              <td>{{ exam.durationInMinutes }} min</td>
-              <td>{{ exam.totalMarks }}</td>
-              <td>
-                <span class="badge" [class.bg-success]="exam.isPublished" [class.bg-warning]="!exam.isPublished">
-                  {{ exam.isPublished ? 'Published' : 'Draft' }}
-                </span>
-                </td>
-              <td>
-                <button class="btn btn-sm btn-warning me-1" (click)="editExam(exam.id)">
-                  ✏️ Edit
-                </button>
-                <button class="btn btn-sm btn-info me-1" (click)="addQuestions(exam.id)">
-                  + Questions
-                </button>
-                <button class="btn btn-sm btn-success" (click)="publishExam(exam.id)" [disabled]="exam.isPublished">
-                  Publish
-                </button>
-                <button class="btn btn-sm btn-danger" (click)="deleteExam(exam.id)">
-    🗑️ Delete
-  </button>
-   <button class="btn btn-sm btn-secondary ms-1" (click)="viewResults(exam.id)">
-    📊 Results
-  </button>
-                
-                
-</td>
-             </tr>
-          </tbody>
-        </table>
+      <!-- ========== RESULTS TAB ========== -->
+      <div *ngIf="activeTab === 'results'">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Exam Results</h3>
+          </div>
+          <div class="exam-list">
+            <div *ngFor="let exam of exams" class="exam-item">
+              <div class="exam-info">
+                <strong class="exam-title">{{ exam.title }}</strong>
+                <p>{{ exam.description | slice:0:60 }}...</p>
+              </div>
+              <button class="btn-sm" (click)="viewResults(exam.id)">
+                View Results →
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>

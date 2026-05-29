@@ -1,28 +1,39 @@
-﻿CREATE PROCEDURE sp_CalculateResult
+﻿CREATE PROCEDURE sp_SubmitExam
     @AttemptId INT
 AS
 BEGIN
-    -- Result summary
-    SELECT 
-        ea.Score,
-        e.TotalMarks,
-        ea.Percentage,
-        ea.IsPassed,
-        ea.SubmittedAt
-    FROM ExamAttempts ea
-    JOIN Exams e ON ea.ExamId = e.Id
-    WHERE ea.Id = @AttemptId;
+    DECLARE @TotalScore INT;
+    DECLARE @TotalMarks INT;
+    DECLARE @Percentage DECIMAL(5,2);
+    DECLARE @IsPassed BIT;
     
-    -- Answer details
-    SELECT 
-        q.Id AS QuestionId,
-        q.QuestionText,
-        ISNULL(a.SelectedOption, 'Not Answered') AS YourAnswer,
-        q.CorrectAnswer,
-        ISNULL(a.IsCorrect, 0) AS IsCorrect,
-        ISNULL(a.MarksObtained, 0) AS MarksObtained
+    -- Calculate total score from Answers table (using Marks from Questions table)
+    SELECT @TotalScore = ISNULL(SUM(q.Marks), 0)
+    FROM Answers a
+    INNER JOIN Questions q ON a.QuestionId = q.Id
+    WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;
+    
+    -- Get total marks for the exam
+    SELECT @TotalMarks = ISNULL(SUM(q.Marks), 0)
     FROM Questions q
-    LEFT JOIN Answers a ON q.Id = a.QuestionId AND a.ExamAttemptId = @AttemptId
-    WHERE q.ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId)
-    ORDER BY q.Id;
+    WHERE q.ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);
+    
+    -- Calculate percentage
+    IF @TotalMarks > 0
+        SET @Percentage = (@TotalScore * 100.0) / @TotalMarks;
+    ELSE
+        SET @Percentage = 0;
+    
+    -- Determine if passed (40% passing marks)
+    SET @IsPassed = CASE WHEN @Percentage >= 40 THEN 1 ELSE 0 END;
+    
+    -- Update exam attempt
+    UPDATE ExamAttempts
+    SET SubmittedAt = GETDATE(),
+        Score = @TotalScore,
+        Status = 'Completed',
+        IsPassed = @IsPassed,
+        Percentage = @Percentage
+    WHERE Id = @AttemptId;
 END
+GO

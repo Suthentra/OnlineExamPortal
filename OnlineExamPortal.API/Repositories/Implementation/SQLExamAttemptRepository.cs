@@ -60,20 +60,59 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                 SelectedOption = selectedOption
             };
         }
-
         public async Task<ExamAttempt> SubmitExamAsync(int attemptId)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_SubmitExam", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@AttemptId", attemptId);
-
             await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+
+            // Step 1: Calculate score
+            string scoreSql = @"
+        SELECT ISNULL(SUM(q.Marks), 0) 
+        FROM Answers a 
+        JOIN Questions q ON a.QuestionId = q.Id 
+        WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;
+    ";
+
+            SqlCommand scoreCmd = new SqlCommand(scoreSql, conn);
+            scoreCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+            int totalScore = Convert.ToInt32(await scoreCmd.ExecuteScalarAsync());
+
+            // Step 2: Get total marks for the exam
+            string totalMarksSql = @"
+        SELECT ISNULL(SUM(Marks), 0) 
+        FROM Questions 
+        WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);
+    ";
+
+            SqlCommand totalMarksCmd = new SqlCommand(totalMarksSql, conn);
+            totalMarksCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+            int totalMarks = Convert.ToInt32(await totalMarksCmd.ExecuteScalarAsync());
+
+            // Step 3: Calculate percentage
+            decimal percentage = totalMarks > 0 ? (totalScore * 100.0m) / totalMarks : 0;
+            bool isPassed = percentage >= 40;
+
+            // Step 4: Update the attempt
+            string updateSql = @"
+        UPDATE ExamAttempts 
+        SET SubmittedAt = GETDATE(),
+            Score = @Score,
+            Status = 'Completed',
+            IsPassed = @IsPassed,
+            Percentage = @Percentage
+        WHERE Id = @AttemptId;
+    ";
+
+            SqlCommand updateCmd = new SqlCommand(updateSql, conn);
+            updateCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+            updateCmd.Parameters.AddWithValue("@Score", totalScore);
+            updateCmd.Parameters.AddWithValue("@IsPassed", isPassed);
+            updateCmd.Parameters.AddWithValue("@Percentage", percentage);
+
+            await updateCmd.ExecuteNonQueryAsync();
 
             return await GetAttemptByIdAsync(attemptId);
         }
-
         public async Task<ExamAttempt?> GetAttemptByIdAsync(int attemptId)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);

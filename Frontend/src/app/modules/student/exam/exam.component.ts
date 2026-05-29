@@ -15,10 +15,7 @@ export class ExamComponent implements OnInit, OnDestroy {
   questions: any[] = [];
   attemptId = 0;
   currentIndex = 0;
-  
-  // Simple array to store answers - index matches question order
   selectedAnswers: string[] = [];
-  
   timeLeft = 0;
   timer: any;
   loading = true;
@@ -51,10 +48,7 @@ export class ExamComponent implements OnInit, OnDestroy {
         this.examTitle = res.examTitle;
         this.questions = res.questions;
         this.timeLeft = res.remainingMinutes * 60;
-        
-        // Initialize answers array with empty strings
         this.selectedAnswers = new Array(this.questions.length).fill('');
-        
         this.startTimer();
         this.loading = false;
       },
@@ -76,32 +70,17 @@ export class ExamComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
-  // Simple method to select answer
   selectAnswer(option: string) {
     this.selectedAnswers[this.currentIndex] = option;
     
-    // Save to backend
     const questionId = this.questions[this.currentIndex].id;
     this.api.submitAnswer({
       attemptId: this.attemptId,
       questionId: questionId,
       selectedOption: option
-    }).subscribe();
-  }
-
-  // Check if current question has an answer
-  hasCurrentAnswer(): boolean {
-    return this.selectedAnswers[this.currentIndex] !== '';
-  }
-
-  // Get current answer
-  getCurrentAnswer(): string {
-    return this.selectedAnswers[this.currentIndex];
-  }
-
-  // Check if a specific question is answered
-  isAnswered(index: number): boolean {
-    return this.selectedAnswers[index] !== '';
+    }).subscribe({
+      error: (err) => console.error('Save error:', err)
+    });
   }
 
   getCurrentQuestion() {
@@ -137,18 +116,50 @@ export class ExamComponent implements OnInit, OnDestroy {
   submitExam() {
     if (this.timer) clearInterval(this.timer);
     
-    if (confirm('Submit exam?')) {
+    if (confirm('Are you sure you want to submit your exam?')) {
       this.loading = true;
-      this.api.submitExam(this.attemptId).subscribe({
-        next: () => {
+      
+      // Calculate score
+      let totalScore = 0;
+      let totalMarks = 0;
+      
+      for (let i = 0; i < this.questions.length; i++) {
+        const question = this.questions[i];
+        totalMarks += question.marks;
+        const userAnswer = this.selectedAnswers[i];
+        if (userAnswer === question.correctAnswer) {
+          totalScore += question.marks;
+        }
+      }
+      
+      const percentage = (totalScore * 100) / totalMarks;
+      const isPassed = percentage >= 40;
+      
+      const resultData = {
+        attemptId: this.attemptId,
+        score: totalScore,
+        totalMarks: totalMarks,
+        percentage: percentage,
+        isPassed: isPassed
+      };
+      
+      console.log('Submitting result:', resultData);
+      
+      this.api.saveExamResult(resultData).subscribe({
+        next: (response: any) => {
+          console.log('Submit response:', response);
           this.submitted = true;
           this.loading = false;
-          setTimeout(() => this.router.navigate(['/results']), 2000);
+          setTimeout(() => {
+            this.router.navigate(['/results']);
+          }, 2000);
         },
-        error: (err) => console.error(err)
+        error: (err: any) => {
+          console.error('Submit error:', err);
+          this.errorMessage = err.error?.message || 'Failed to submit exam';
+          this.loading = false;
+        }
       });
-    } else {
-      this.startTimer();
     }
   }
 

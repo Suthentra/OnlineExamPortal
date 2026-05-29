@@ -45,18 +45,20 @@
             <h4 class="mt-3">{{ getCurrentQuestion()?.questionText }}</h4>
             <hr>
             
-            <!-- Options - Using simple buttons instead of radio to avoid confusion -->
+            <!-- Options -->
             <div class="mt-4">
-              <button *ngFor="let opt of ['A', 'B', 'C', 'D']" 
-                      class="btn w-100 text-start mb-2 p-3 border rounded"
-                      [class.btn-primary]="getCurrentAnswer() === opt"
-                      [class.btn-outline-secondary]="getCurrentAnswer() !== opt"
-                      (click)="selectAnswer(opt)">
+              <div *ngFor="let opt of ['A', 'B', 'C', 'D']" 
+                   class="border rounded p-3 mb-2"
+                   [class.bg-primary]="selectedAnswers[currentIndex] === opt"
+                   [class.text-white]="selectedAnswers[currentIndex] === opt"
+                   [class.bg-light]="selectedAnswers[currentIndex] !== opt"
+                   style="cursor: pointer; transition: all 0.3s ease;"
+                   (click)="selectAnswer(opt)">
                 <strong>{{ opt }}.</strong> {{ getCurrentQuestion()?.['option' + opt] }}
-              </button>
+              </div>
             </div>
 
-            <!-- Navigation -->
+            <!-- Navigation Buttons -->
             <div class="mt-4 d-flex justify-content-between">
               <button class="btn btn-secondary px-4" (click)="prev()" [disabled]="currentIndex === 0">
                 ← Previous
@@ -79,8 +81,8 @@
             <div class="d-flex flex-wrap gap-2">
               <button *ngFor="let q of questions; let i = index"
                       class="btn"
-                      [class.btn-success]="isAnswered(i)"
-                      [class.btn-secondary]="!isAnswered(i)"
+                      [class.btn-success]="selectedAnswers[i]"
+                      [class.btn-secondary]="!selectedAnswers[i]"
                       [class.btn-primary]="currentIndex === i"
                       style="width: 45px; height: 45px;"
                       (click)="goToQuestion(i)">

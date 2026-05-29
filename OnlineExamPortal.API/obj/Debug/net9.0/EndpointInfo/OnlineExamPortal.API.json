@@ -253,6 +253,37 @@
         }
       }
     },
+    "/api/ExamAttempt/save-result": {
+      "post": {
+        "tags": [
+          "ExamAttempt"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveResultDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveResultDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Exams": {
       "get": {
         "tags": [
@@ -671,29 +702,6 @@
         }
       }
     },
-    "/api/Results/leaderboard/{examId}": {
-      "get": {
-        "tags": [
-          "Results"
-        ],
-        "parameters": [
-          {
-            "name": "examId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/Users": {
       "get": {
         "tags": [
@@ -949,6 +957,31 @@
           "password": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveResultDto": {
+        "type": "object",
+        "properties": {
+          "attemptId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalMarks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "isPassed": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Result;
 using OnlineExamPortal.API.Repositories.Interface;
 using System.Security.Claims;
@@ -14,15 +16,20 @@ namespace OnlineExamPortal.API.Controllers
         private readonly IExamAttemptRepository _examAttemptRepository;
         private readonly IExamRepository _examRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IConfiguration _configuration;
+        private readonly string _connectionString;
 
         public ResultsController(
             IExamAttemptRepository examAttemptRepository,
             IExamRepository examRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IConfiguration configuration)
         {
             _examAttemptRepository = examAttemptRepository;
             _examRepository = examRepository;
             _userRepository = userRepository;
+            _configuration = configuration;
+            _connectionString = _configuration.GetConnectionString("OnlineExamPortalConnectionString");
         }
 
         // GET: api/Results/student/{studentId}
@@ -35,25 +42,46 @@ namespace OnlineExamPortal.API.Controllers
             if (currentUserId != studentId && currentUserRole != "Admin")
                 return Forbid();
 
-            var attempts = await _examAttemptRepository.GetAttemptsByStudentIdAsync(studentId);
+            var results = new List<object>();
 
-            var results = new List<StudentResultDto>();
-
-            foreach (var attempt in attempts.Where(a => a.Status == "Completed"))
+            using (SqlConnection conn = new SqlConnection(_connectionString))
             {
-                var exam = await _examRepository.GetByIdAsync(attempt.ExamId);
+                string sql = @"
+                    SELECT 
+                        ea.Id AS AttemptId,
+                        ea.ExamId,
+                        e.Title AS ExamTitle,
+                        ISNULL(ea.Score, 0) AS Score,
+                        e.TotalMarks,
+                        ISNULL(ea.Percentage, 0) AS Percentage,
+                        ISNULL(ea.IsPassed, 0) AS IsPassed,
+                        ea.SubmittedAt
+                    FROM ExamAttempts ea
+                    INNER JOIN Exams e ON ea.ExamId = e.Id
+                    WHERE ea.UserId = @StudentId AND ea.Status = 'Completed'
+                    ORDER BY ea.SubmittedAt DESC;
+                ";
 
-                results.Add(new StudentResultDto
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@StudentId", studentId);
+
+                await conn.OpenAsync();
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
                 {
-                    AttemptId = attempt.Id,
-                    ExamId = attempt.ExamId,
-                    ExamTitle = exam?.Title ?? string.Empty,
-                    SubmittedAt = attempt.SubmittedAt,
-                    Score = attempt.Score,
-                    TotalMarks = exam?.TotalMarks ?? 0,
-                    Percentage = attempt.Percentage,
-                    IsPassed = attempt.IsPassed
-                });
+                    results.Add(new
+                    {
+                        attemptId = Convert.ToInt32(reader["AttemptId"]),
+                        examId = Convert.ToInt32(reader["ExamId"]),
+                        examTitle = reader["ExamTitle"].ToString(),
+                        score = Convert.ToInt32(reader["Score"]),
+                        totalMarks = Convert.ToInt32(reader["TotalMarks"]),
+                        percentage = Convert.ToDecimal(reader["Percentage"]),
+                        isPassed = Convert.ToBoolean(reader["IsPassed"]),
+                        submittedAt = Convert.ToDateTime(reader["SubmittedAt"])
+                    });
+                }
             }
 
             return Ok(results);
@@ -68,33 +96,51 @@ namespace OnlineExamPortal.API.Controllers
             if (exam == null)
                 return NotFound(new { message = "Exam not found" });
 
-            var allUsers = await _userRepository.GetAllAsync();
-            var students = allUsers.Where(u => u.UserRole == "Student").ToList();
+            var results = new List<object>();
 
-            var results = new List<ExamResultDetailDto>();
-
-            foreach (var student in students)
+            using (SqlConnection conn = new SqlConnection(_connectionString))
             {
-                var attempts = await _examAttemptRepository.GetAttemptsByStudentIdAsync(student.Id);
-                var attempt = attempts.FirstOrDefault(a => a.ExamId == examId && a.Status == "Completed");
+                string sql = @"
+                    SELECT 
+                        u.Id AS StudentId,
+                        u.FullName AS StudentName,
+                        u.Email AS StudentEmail,
+                        ea.Id AS AttemptId,
+                        ISNULL(ea.Score, 0) AS Score,
+                        ISNULL(ea.Percentage, 0) AS Percentage,
+                        ISNULL(ea.IsPassed, 0) AS IsPassed,
+                        ea.StartedAt,
+                        ea.SubmittedAt
+                    FROM ExamAttempts ea
+                    INNER JOIN Users u ON ea.UserId = u.Id
+                    WHERE ea.ExamId = @ExamId AND ea.Status = 'Completed'
+                    ORDER BY ea.Score DESC;
+                ";
 
-                if (attempt != null)
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@ExamId", examId);
+
+                await conn.OpenAsync();
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
                 {
-                    results.Add(new ExamResultDetailDto
+                    results.Add(new
                     {
-                        AttemptId = attempt.Id,
-                        StudentName = student.FullName,
-                        StudentEmail = student.Email,
-                        SubmittedAt = attempt.SubmittedAt,
-                        Score = attempt.Score,
-                        TotalMarks = exam.TotalMarks,
-                        Percentage = attempt.Percentage,
-                        IsPassed = attempt.IsPassed
+                        attemptId = Convert.ToInt32(reader["AttemptId"]),
+                        studentName = reader["StudentName"].ToString(),
+                        studentEmail = reader["StudentEmail"].ToString(),
+                        score = Convert.ToInt32(reader["Score"]),
+                        totalMarks = exam.TotalMarks,
+                        percentage = Convert.ToDecimal(reader["Percentage"]),
+                        isPassed = Convert.ToBoolean(reader["IsPassed"]),
+                        startedAt = Convert.ToDateTime(reader["StartedAt"]),
+                        submittedAt = Convert.ToDateTime(reader["SubmittedAt"])
                     });
                 }
             }
 
-            return Ok(results.OrderByDescending(r => r.Score));
+            return Ok(results);
         }
 
         // GET: api/Results/{attemptId}
@@ -111,52 +157,61 @@ namespace OnlineExamPortal.API.Controllers
             if (currentUserId != attempt.UserId && currentUserRole != "Admin")
                 return Forbid();
 
-            var result = await _examAttemptRepository.CalculateResultAsync(attemptId);
-            return Ok(result);
-        }
+            var exam = await _examRepository.GetByIdAsync(attempt.ExamId);
 
-        // GET: api/Results/leaderboard/{examId}
-        [HttpGet("leaderboard/{examId}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetLeaderboard(int examId)
-        {
-            var exam = await _examRepository.GetByIdAsync(examId);
-            if (exam == null)
-                return NotFound(new { message = "Exam not found" });
+            // Get answer details
+            var answers = new List<object>();
 
-            var allUsers = await _userRepository.GetAllAsync();
-            var students = allUsers.Where(u => u.UserRole == "Student").ToList();
-
-            var leaderboard = new List<LeaderboardDto>();
-
-            foreach (var student in students)
+            using (SqlConnection conn = new SqlConnection(_connectionString))
             {
-                var attempts = await _examAttemptRepository.GetAttemptsByStudentIdAsync(student.Id);
-                var attempt = attempts.FirstOrDefault(a => a.ExamId == examId && a.Status == "Completed");
+                string sql = @"
+                    SELECT 
+                        q.Id AS QuestionId,
+                        q.QuestionText,
+                        ISNULL(a.SelectedOption, 'Not Answered') AS YourAnswer,
+                        q.CorrectAnswer,
+                        ISNULL(a.IsCorrect, 0) AS IsCorrect,
+                        q.Marks
+                    FROM Questions q
+                    LEFT JOIN Answers a ON q.Id = a.QuestionId AND a.ExamAttemptId = @AttemptId
+                    WHERE q.ExamId = @ExamId
+                    ORDER BY q.Id;
+                ";
 
-                if (attempt != null)
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                cmd.Parameters.AddWithValue("@ExamId", attempt.ExamId);
+
+                await conn.OpenAsync();
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
                 {
-                    leaderboard.Add(new LeaderboardDto
+                    answers.Add(new
                     {
-                        StudentName = student.FullName,
-                        Score = attempt.Score,
-                        Percentage = attempt.Percentage,
-                        SubmittedAt = attempt.SubmittedAt
+                        questionId = Convert.ToInt32(reader["QuestionId"]),
+                        questionText = reader["QuestionText"].ToString(),
+                        yourAnswer = reader["YourAnswer"].ToString(),
+                        correctAnswer = reader["CorrectAnswer"].ToString(),
+                        isCorrect = Convert.ToBoolean(reader["IsCorrect"]),
+                        marks = Convert.ToInt32(reader["Marks"])
                     });
                 }
             }
 
-            var sortedLeaderboard = leaderboard
-                .OrderByDescending(l => l.Percentage)
-                .ThenBy(l => l.SubmittedAt)
-                .ToList();
-
-            for (int i = 0; i < sortedLeaderboard.Count; i++)
+            var result = new
             {
-                sortedLeaderboard[i].Rank = i + 1;
-            }
+                attemptId = attempt.Id,
+                examTitle = exam?.Title,
+                score = attempt.Score,
+                totalMarks = exam?.TotalMarks ?? 0,
+                percentage = attempt.Percentage,
+                isPassed = attempt.IsPassed,
+                submittedAt = attempt.SubmittedAt,
+                answers = answers
+            };
 
-            return Ok(sortedLeaderboard);
+            return Ok(result);
         }
     }
 }

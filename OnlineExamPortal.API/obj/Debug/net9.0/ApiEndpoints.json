@@ -86,6 +86,22 @@
   },
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
+    "Method": "SaveExamResult",
+    "RelativePath": "api/ExamAttempt/save-result",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "result",
+        "Type": "OnlineExamPortal.API.Models.DTOs.ExamAttempt.SaveResultDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
     "Method": "StartExam",
     "RelativePath": "api/ExamAttempt/start",
     "HttpMethod": "POST",
@@ -384,22 +400,6 @@
     "ContainingType": "OnlineExamPortal.API.Controllers.ResultsController",
     "Method": "GetExamResults",
     "RelativePath": "api/Results/exam/{examId}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "examId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "OnlineExamPortal.API.Controllers.ResultsController",
-    "Method": "GetLeaderboard",
-    "RelativePath": "api/Results/leaderboard/{examId}",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,

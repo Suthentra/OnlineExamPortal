@@ -12,7 +12,9 @@ import { ApiService } from '../../../shared/services/api.service';
 export class AdminDashboardComponent implements OnInit {
   user: any;
   exams: any[] = [];
+  students: any[] = [];
   loading = true;
+  activeTab: string = 'dashboard';  // ← ADD THIS
 
   constructor(
     private auth: AuthService,
@@ -22,10 +24,10 @@ export class AdminDashboardComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.auth.getUser();
-    this.loadExams();
+    this.loadData();
   }
 
-  loadExams() {
+  loadData() {
     this.api.getAllExams().subscribe({
       next: (data: any) => {
         this.exams = data;
@@ -35,47 +37,51 @@ export class AdminDashboardComponent implements OnInit {
         this.loading = false;
       }
     });
+    
+    this.api.getAllUsers().subscribe({
+      next: (data: any) => {
+        this.students = data.filter((u: any) => u.userRole === 'Student');
+      }
+    });
+  }
+
+  get totalStudents(): number {
+    return this.students.length;
+  }
+
+  get totalQuestions(): number {
+    return this.exams.reduce((sum, e) => sum + (e.totalQuestions || 0), 0);
+  }
+
+  get averageScore(): number {
+    return 72;
   }
 
   createExam() {
     this.router.navigate(['/admin/create-exam']);
   }
 
-  editExam(examId: number) {
-    this.router.navigate(['/admin/edit-exam', examId]);
+  editExam(id: number) {
+    this.router.navigate(['/admin/edit-exam', id]);
   }
 
-  addQuestions(examId: number) {
-    this.router.navigate(['/admin/add-questions', examId]);
+  addQuestions(id: number) {
+    this.router.navigate(['/admin/add-questions', id]);
   }
-  deleteExam(examId: number) {
-  if (confirm('Are you sure you want to delete this exam? All questions will also be deleted.')) {
-    this.api.deleteExam(examId).subscribe({
-      next: () => {
-        this.loadExams(); // Refresh the list
-        alert('Exam deleted successfully');
-      },
-      error: (err) => {
-        console.error('Failed to delete exam:', err);
-        alert('Failed to delete exam');
-      }
-    });
-  }
-}
 
-  publishExam(examId: number) {
-    this.api.publishExam(examId).subscribe({
-      next: () => {
-        this.loadExams();
-      },
-      error: (err) => {
-        console.error('Failed to publish:', err);
-      }
-    });
+  publishExam(id: number) {
+    this.api.publishExam(id).subscribe(() => this.loadData());
   }
-  viewResults(examId: number) {
-  this.router.navigate(['/admin/exam-results', examId]);
-}
+
+  deleteExam(id: number) {
+    if (confirm('Delete this exam?')) {
+      this.api.deleteExam(id).subscribe(() => this.loadData());
+    }
+  }
+
+  viewResults(id: number) {
+    this.router.navigate(['/admin/exam-results', id]);
+  }
 
   logout() {
     this.auth.logout();

@@ -15,7 +15,8 @@ export class ExamResultsComponent implements OnInit {
   results: any[] = [];
   loading: boolean = true;
   searchTerm: string = '';
-  sortBy: string = 'score';
+  statusFilter: string = 'all';
+  sortField: string = 'submittedAt';
   sortDirection: string = 'desc';
 
   constructor(
@@ -35,6 +36,7 @@ export class ExamResultsComponent implements OnInit {
     this.api.getExamResults(this.examId).subscribe({
       next: (data: any) => {
         this.results = data;
+        this.examTitle = this.results[0]?.examTitle || 'Exam Results';
         this.loading = false;
       },
       error: (err) => {
@@ -45,7 +47,7 @@ export class ExamResultsComponent implements OnInit {
   }
 
   get filteredResults() {
-    let filtered = this.results;
+    let filtered = [...this.results];
     
     // Apply search filter
     if (this.searchTerm) {
@@ -55,12 +57,19 @@ export class ExamResultsComponent implements OnInit {
       );
     }
     
+    // Apply status filter
+    if (this.statusFilter === 'passed') {
+      filtered = filtered.filter(r => r.isPassed);
+    } else if (this.statusFilter === 'failed') {
+      filtered = filtered.filter(r => !r.isPassed);
+    }
+    
     // Apply sorting
     filtered.sort((a, b) => {
-      let aVal = a[this.sortBy];
-      let bVal = b[this.sortBy];
+      let aVal = a[this.sortField];
+      let bVal = b[this.sortField];
       
-      if (this.sortBy === 'percentage' || this.sortBy === 'score') {
+      if (this.sortField === 'percentage' || this.sortField === 'score') {
         aVal = Number(aVal);
         bVal = Number(bVal);
       }
@@ -75,30 +84,13 @@ export class ExamResultsComponent implements OnInit {
     return filtered;
   }
 
-  changeSort(column: string) {
-    if (this.sortBy === column) {
+  sortBy(field: string) {
+    if (this.sortField === field) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
     } else {
-      this.sortBy = column;
-      this.sortDirection = 'desc';
+      this.sortField = field;
+      this.sortDirection = 'asc';
     }
-  }
-
-  getSortIcon(column: string): string {
-    if (this.sortBy !== column) return '↕️';
-    return this.sortDirection === 'asc' ? '↑' : '↓';
-  }
-
-  getAverageScore(): number {
-    if (this.results.length === 0) return 0;
-    const total = this.results.reduce((sum, r) => sum + r.score, 0);
-    return Math.round(total / this.results.length);
-  }
-
-  getAveragePercentage(): number {
-    if (this.results.length === 0) return 0;
-    const total = this.results.reduce((sum, r) => sum + r.percentage, 0);
-    return Math.round(total / this.results.length);
   }
 
   getPassCount(): number {
@@ -109,13 +101,31 @@ export class ExamResultsComponent implements OnInit {
     return this.results.filter(r => !r.isPassed).length;
   }
 
-  getPassPercentage(): number {
+  getAverageScore(): number {
     if (this.results.length === 0) return 0;
-    return Math.round((this.getPassCount() / this.results.length) * 100);
+    const total = this.results.reduce((sum, r) => sum + r.percentage, 0);
+    return Math.round(total / this.results.length);
+  }
+
+  getDuration(startedAt: string, submittedAt: string): string {
+    const start = new Date(startedAt);
+    const end = new Date(submittedAt);
+    const diffMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes} minutes`;
+  }
+
+  viewStudentDetails(attemptId: number) {
+    this.router.navigate(['/admin/student-result', attemptId]);
   }
 
   exportToCSV() {
-    const headers = ['Student Name', 'Email', 'Score', 'Total Marks', 'Percentage', 'Status', 'Submitted Date'];
+    const headers = ['Student Name', 'Email', 'Score', 'Total Marks', 'Percentage', 'Status', 'Started At', 'Submitted At', 'Duration'];
     const rows = this.filteredResults.map(r => [
       r.studentName,
       r.studentEmail,
@@ -123,7 +133,9 @@ export class ExamResultsComponent implements OnInit {
       r.totalMarks,
       r.percentage + '%',
       r.isPassed ? 'Passed' : 'Failed',
-      new Date(r.submittedAt).toLocaleString()
+      new Date(r.startedAt).toLocaleString(),
+      new Date(r.submittedAt).toLocaleString(),
+      this.getDuration(r.startedAt, r.submittedAt)
     ]);
     
     const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -134,10 +146,6 @@ export class ExamResultsComponent implements OnInit {
     a.download = `exam_${this.examId}_results.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  }
-
-  viewStudentResult(attemptId: number) {
-    this.router.navigate(['/admin/student-result', attemptId]);
   }
 
   goBack() {
