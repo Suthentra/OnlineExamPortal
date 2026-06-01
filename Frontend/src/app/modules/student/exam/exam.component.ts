@@ -114,33 +114,54 @@ export class ExamComponent implements OnInit, OnDestroy {
   }
 
   submitExam() {
-  if (this.timer) clearInterval(this.timer);
-  
-  if (confirm('Are you sure you want to submit your exam?')) {
-    this.loading = true;
+    if (this.timer) clearInterval(this.timer);
     
-    this.api.submitExam(this.attemptId).subscribe({
-      next: (response: any) => {
-        console.log('Submit response:', response);
-        
-        // Show score to student before redirecting
-        alert(`Exam Submitted!\n\nYour Score: ${response.score}/${response.totalMarks}\nPercentage: ${response.percentage}%\nStatus: ${response.isPassed ? 'Passed ✅' : 'Failed ❌'}`);
-        
-        this.submitted = true;
-        this.loading = false;
-        
-        setTimeout(() => {
-          this.router.navigate(['/results']);
-        }, 2000);
-      },
-      error: (err: any) => {
-        console.error('Submit error:', err);
-        this.errorMessage = err.error?.message || 'Failed to submit exam';
-        this.loading = false;
+    if (confirm('Are you sure you want to submit your exam?')) {
+      this.loading = true;
+      
+      // Calculate score
+      let totalScore = 0;
+      let totalMarks = 0;
+      
+      for (let i = 0; i < this.questions.length; i++) {
+        const question = this.questions[i];
+        totalMarks += question.marks;
+        const userAnswer = this.selectedAnswers[i];
+        if (userAnswer === question.correctAnswer) {
+          totalScore += question.marks;
+        }
       }
-    });
+      
+      const percentage = (totalScore * 100) / totalMarks;
+      const isPassed = percentage >= 40;
+      
+      const resultData = {
+        attemptId: this.attemptId,
+        score: totalScore,
+        totalMarks: totalMarks,
+        percentage: percentage,
+        isPassed: isPassed
+      };
+      
+      console.log('Submitting result:', resultData);
+      
+      this.api.saveExamResult(resultData).subscribe({
+        next: (response: any) => {
+          console.log('Submit response:', response);
+          this.submitted = true;
+          this.loading = false;
+          setTimeout(() => {
+            this.router.navigate(['/results']);
+          }, 2000);
+        },
+        error: (err: any) => {
+          console.error('Submit error:', err);
+          this.errorMessage = err.error?.message || 'Failed to submit exam';
+          this.loading = false;
+        }
+      });
+    }
   }
-}
 
   logout() {
     this.auth.logout();

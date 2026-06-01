@@ -79,186 +79,101 @@ namespace OnlineExamPortal.API.Controllers
             return Ok(response);
         }
 
+        // POST: api/ExamAttempt/submit-answer
         [HttpPost("submit-answer")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitAnswer([FromBody] SubmitAnswerRequestDto request)
         {
             try
             {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                await conn.OpenAsync();
-
-                // Get correct answer and marks from Questions table
-                string getQuestionSql = "SELECT CorrectAnswer, Marks FROM Questions WHERE Id = @QuestionId";
-                SqlCommand getCmd = new SqlCommand(getQuestionSql, conn);
-                getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
-
-                string correctAnswer = "";
-                int marks = 0;
-
-                using (SqlDataReader reader = await getCmd.ExecuteReaderAsync())
+                using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
-                    if (await reader.ReadAsync())
-                    {
-                        correctAnswer = reader["CorrectAnswer"].ToString();
-                        marks = Convert.ToInt32(reader["Marks"]);
-                    }
-                    reader.Close();
+                    await conn.OpenAsync();
+
+                    // Get correct answer
+                    string getCorrectSql = "SELECT CorrectAnswer FROM Questions WHERE Id = @QuestionId";
+                    SqlCommand getCmd = new SqlCommand(getCorrectSql, conn);
+                    getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                    string correctAnswer = (await getCmd.ExecuteScalarAsync())?.ToString() ?? "";
+
+                    bool isCorrect = request.SelectedOption == correctAnswer;
+
+                    // Insert answer
+                    string insertSql = @"
+                        IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
+                            UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
+                            WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
+                        ELSE
+                            INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOption, IsCorrect)
+                            VALUES (@AttemptId, @QuestionId, @SelectedOption, @IsCorrect)
+                    ";
+
+                    SqlCommand insertCmd = new SqlCommand(insertSql, conn);
+                    insertCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
+                    insertCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                    insertCmd.Parameters.AddWithValue("@SelectedOption", request.SelectedOption);
+                    insertCmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
+
+                    await insertCmd.ExecuteNonQueryAsync();
+
+                    return Ok(new { message = "Answer saved", isCorrect = isCorrect });
                 }
-
-                bool isCorrect = request.SelectedOption == correctAnswer;
-
-                // Insert or update answer
-                string upsertSql = @"
-            IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
-                UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
-                WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
-            ELSE
-                INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOption, IsCorrect)
-                VALUES (@AttemptId, @QuestionId, @SelectedOption, @IsCorrect)
-        ";
-
-                SqlCommand upsertCmd = new SqlCommand(upsertSql, conn);
-                upsertCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
-                upsertCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
-                upsertCmd.Parameters.AddWithValue("@SelectedOption", request.SelectedOption);
-                upsertCmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
-
-                await upsertCmd.ExecuteNonQueryAsync();
-
-                return Ok(new
-                {
-                    message = "Answer submitted successfully",
-                    isCorrect = isCorrect,
-                    correctAnswer = correctAnswer
-                });
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // POST: api/ExamAttempt/submit/{attemptId}
         [HttpPost("submit/{attemptId}")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitExam(int attemptId)
         {
             try
             {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                await conn.OpenAsync();
-
-                // Calculate total score from answers
-                string calcSql = @"
-            DECLARE @TotalScore INT;
-            DECLARE @TotalMarks INT;
-            DECLARE @Percentage DECIMAL(5,2);
-            DECLARE @IsPassed BIT;
-            
-            -- Calculate total score from correct answers
-            SELECT @TotalScore = ISNULL(SUM(q.Marks), 0)
-            FROM Answers a
-            INNER JOIN Questions q ON a.QuestionId = q.Id
-            WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;
-            
-            -- Get total marks for the exam
-            SELECT @TotalMarks = ISNULL(SUM(Marks), 0)
-            FROM Questions
-            WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);
-            
-            -- Calculate percentage
-            IF @TotalMarks > 0
-                SET @Percentage = CAST((@TotalScore * 100.0) / @TotalMarks AS DECIMAL(5,2));
-            ELSE
-                SET @Percentage = 0;
-            
-            -- Determine if passed (40% passing marks)
-            SET @IsPassed = CASE WHEN @Percentage >= 40 THEN 1 ELSE 0 END;
-            
-            -- Update exam attempt
-            UPDATE ExamAttempts 
-            SET SubmittedAt = GETDATE(),
-                Score = @TotalScore,
-                Status = 'Completed',
-                IsPassed = @IsPassed,
-                Percentage = @Percentage
-            WHERE Id = @AttemptId;
-            
-            SELECT @TotalScore AS Score, @TotalMarks AS TotalMarks, @Percentage AS Percentage, @IsPassed AS IsPassed;
-        ";
-
-                SqlCommand cmd = new SqlCommand(calcSql, conn);
-                cmd.Parameters.AddWithValue("@AttemptId", attemptId);
-
-                SqlDataReader reader = await cmd.ExecuteReaderAsync();
-
-                int score = 0;
-                int totalMarks = 0;
-                decimal percentage = 0;
-                bool isPassed = false;
-
-                if (await reader.ReadAsync())
+                using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
-                    score = reader["Score"] != DBNull.Value ? Convert.ToInt32(reader["Score"]) : 0;
-                    totalMarks = reader["TotalMarks"] != DBNull.Value ? Convert.ToInt32(reader["TotalMarks"]) : 0;
-                    percentage = reader["Percentage"] != DBNull.Value ? Convert.ToDecimal(reader["Percentage"]) : 0;
-                    isPassed = reader["IsPassed"] != DBNull.Value ? Convert.ToBoolean(reader["IsPassed"]) : false;
+                    await conn.OpenAsync();
+
+                    // Calculate score and update
+                    string sql = @"
+                        DECLARE @TotalScore INT = ISNULL((SELECT SUM(q.Marks) 
+                            FROM Answers a JOIN Questions q ON a.QuestionId = q.Id 
+                            WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1), 0);
+                        
+                        DECLARE @TotalMarks INT = ISNULL((SELECT SUM(Marks) 
+                            FROM Questions 
+                            WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId)), 0);
+                        
+                        DECLARE @Percentage DECIMAL(5,2) = CASE 
+                            WHEN @TotalMarks > 0 THEN (@TotalScore * 100.0) / @TotalMarks 
+                            ELSE 0 END;
+                        
+                        DECLARE @IsPassed BIT = CASE WHEN @Percentage >= 40 THEN 1 ELSE 0 END;
+                        
+                        UPDATE ExamAttempts 
+                        SET SubmittedAt = GETDATE(),
+                            Status = 'Completed',
+                            Score = @TotalScore,
+                            Percentage = @Percentage,
+                            IsPassed = @IsPassed
+                        WHERE Id = @AttemptId;
+                    ";
+
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    return Ok(new { message = "Exam submitted successfully" });
                 }
-
-                return Ok(new
-                {
-                    message = "Exam submitted successfully",
-                    score = score,
-                    totalMarks = totalMarks,
-                    percentage = percentage,
-                    isPassed = isPassed
-                });
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
-        [HttpGet("all")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAllAttempts()
-        {
-            using SqlConnection conn = new SqlConnection(_connectionString);
-            string sql = @"
-        SELECT 
-            ea.Id, ea.UserId, ea.ExamId, ea.Score, ea.Status, 
-            ea.IsPassed, ea.Percentage, ea.StartedAt, ea.SubmittedAt,
-            e.Title AS ExamTitle, e.TotalMarks
-        FROM ExamAttempts ea
-        JOIN Exams e ON ea.ExamId = e.Id
-        ORDER BY ea.SubmittedAt DESC
-    ";
 
-            using SqlCommand cmd = new SqlCommand(sql, conn);
-            await conn.OpenAsync();
-
-            var attempts = new List<object>();
-            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                attempts.Add(new
-                {
-                    id = reader["Id"],
-                    userId = reader["UserId"],
-                    examId = reader["ExamId"],
-                    examTitle = reader["ExamTitle"],
-                    score = reader["Score"],
-                    totalMarks = reader["TotalMarks"],
-                    percentage = reader["Percentage"],
-                    isPassed = reader["IsPassed"],
-                    status = reader["Status"],
-                    startedAt = reader["StartedAt"],
-                    submittedAt = reader["SubmittedAt"]
-                });
-            }
-
-            return Ok(attempts);
-        }
         // GET: api/ExamAttempt/check/{studentId}/{examId}
         [HttpGet("check/{studentId}/{examId}")]
         [Authorize]

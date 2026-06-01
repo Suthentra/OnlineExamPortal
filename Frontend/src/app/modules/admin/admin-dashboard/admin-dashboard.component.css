@@ -147,13 +147,9 @@
   transition: all 0.3s ease;
 }
 
-.stat-card.clickable {
-  cursor: pointer;
-}
-
-.stat-card.clickable:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
 }
 
 .stat-icon {
@@ -219,6 +215,7 @@
   margin: 0;
 }
 
+/* Buttons */
 .btn-primary {
   background: linear-gradient(135deg, #4361ee, #3a0ca3);
   border: none;
@@ -272,8 +269,10 @@
   flex: 1;
 }
 
-.exam-info strong {
-  color: #1e2a4a;
+.exam-title {
+  color: #1e2a4a !important;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .exam-info p {
@@ -359,6 +358,7 @@
 .exam-body h4 {
   margin-bottom: 8px;
   color: #1e2a4a;
+  font-weight: 600;
 }
 
 .exam-body p {
@@ -404,177 +404,6 @@
   color: #dc2626;
 }
 
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-container {
-  background: white;
-  border-radius: 20px;
-  width: 80%;
-  max-width: 900px;
-  max-height: 80vh;
-  overflow: hidden;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e9ecef;
-  background: linear-gradient(135deg, #4361ee, #3a0ca3);
-  color: white;
-}
-
-.modal-header h3 {
-  margin: 0;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: white;
-}
-
-.modal-body {
-  padding: 20px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.modal-footer {
-  padding: 15px 20px;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
-/* Modal Table */
-.modal-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.modal-table th,
-.modal-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.modal-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #1e2a4a;
-}
-
-.modal-table tr:hover {
-  background: #f8f9fa;
-}
-
-.btn-view {
-  background: #4361ee;
-  border: none;
-  padding: 4px 12px;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-.text-success {
-  color: #28a745;
-  font-weight: bold;
-}
-
-.text-danger {
-  color: #dc2626;
-  font-weight: bold;
-}
-
-/* Pass Rate Chart */
-.passrate-container {
-  padding: 20px;
-}
-
-.progress-bar-container {
-  background: #e9ecef;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.progress-bar {
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  transition: width 0.5s ease;
-}
-
-.progress-bar.passed {
-  background: linear-gradient(90deg, #28a745, #20c997);
-}
-
-.stats-summary {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.dot.green { background: #28a745; }
-.dot.red { background: #dc3545; }
-.dot.blue { background: #4361ee; }
-
 /* Loading Spinner */
 .text-center {
   text-align: center;
@@ -588,7 +417,6 @@
   border-right-color: transparent;
   border-radius: 50%;
   animation: spinner-border 0.75s linear infinite;
-  color: #4361ee;
 }
 
 @keyframes spinner-border {
@@ -618,18 +446,5 @@
   
   .exam-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .modal-container {
-    width: 95%;
-  }
-  
-  .modal-table {
-    font-size: 12px;
-  }
-  
-  .modal-table th,
-  .modal-table td {
-    padding: 6px 8px;
   }
 }
