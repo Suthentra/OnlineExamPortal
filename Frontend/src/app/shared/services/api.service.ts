@@ -145,6 +145,12 @@ updateQuestion(id: number, data: any) {
       headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
     });
   }
+  getAllAttempts() {
+  const token = this.auth.getToken();
+  return this.http.get(`${this.apiUrl}/ExamAttempt/all`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
 
   getExamResults(examId: number) {
   const token = this.auth.getToken();

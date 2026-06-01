@@ -33,22 +33,6 @@
   },
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
-    "Method": "GetAttemptById",
-    "RelativePath": "api/ExamAttempt/{attemptId}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "attemptId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
     "Method": "CheckExamAttempted",
     "RelativePath": "api/ExamAttempt/check/{studentId}/{examId}",
     "HttpMethod": "GET",
@@ -70,38 +54,6 @@
   },
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
-    "Method": "GetResult",
-    "RelativePath": "api/ExamAttempt/result/{attemptId}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "attemptId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
-    "Method": "SaveExamResult",
-    "RelativePath": "api/ExamAttempt/save-result",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "result",
-        "Type": "OnlineExamPortal.API.Models.DTOs.ExamAttempt.SaveResultDto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
     "Method": "StartExam",
     "RelativePath": "api/ExamAttempt/start",
     "HttpMethod": "POST",
@@ -111,22 +63,6 @@
       {
         "Name": "request",
         "Type": "OnlineExamPortal.API.Models.DTOs.ExamAttempt.StartExamRequestDto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
-    "Method": "GetAttemptsByStudentId",
-    "RelativePath": "api/ExamAttempt/student/{studentId}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "studentId",
-        "Type": "System.Int32",
         "IsRequired": true
       }
     ],

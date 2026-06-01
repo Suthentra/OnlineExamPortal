@@ -4,7 +4,6 @@
     <button class="btn btn-danger" (click)="logout()">Logout</button>
   </div>
 
-  <!-- Loading State -->
   <div *ngIf="loading" class="text-center mt-5">
     <div class="spinner-border text-primary" role="status">
       <span class="visually-hidden">Loading...</span>
@@ -12,18 +11,15 @@
     <p class="mt-2">Loading your results...</p>
   </div>
 
-  <!-- Error Message -->
   <div *ngIf="errorMessage" class="alert alert-danger">
     {{ errorMessage }}
   </div>
 
-  <!-- No Results -->
   <div *ngIf="!loading && results.length === 0" class="alert alert-info">
     You haven't taken any exams yet.
   </div>
 
-  <!-- Results Table -->
-  <div *ngIf="!loading && results.length > 0" class="table-responsive">
+  <div class="table-responsive" *ngIf="!loading && results.length > 0">
     <table class="table table-bordered table-hover">
       <thead class="table-dark">
         <tr>
@@ -39,12 +35,12 @@
         <tr *ngFor="let result of results">
           <td><strong>{{ result.examTitle }}</strong></td>
           <td>{{ result.score }}/{{ result.totalMarks }}</td>
-          <td [class.text-success]="result.percentage >= 40" [class.text-danger]="result.percentage < 40">
+          <td [ngClass]="{'text-success': result.percentage >= 40, 'text-danger': result.percentage < 40}">
             {{ result.percentage }}%
           </td>
           <td>
-            <span class="badge" [class.bg-success]="result.isPassed" [class.bg-danger]="!result.isPassed">
-              {{ result.isPassed ? 'Passed' : 'Failed' }}
+            <span class="badge" [ngClass]="{'bg-success': result.isPassed, 'bg-danger': !result.isPassed}">
+              {{ result.isPassed ? 'Passed ✅' : 'Failed ❌' }}
             </span>
           </td>
           <td>{{ result.submittedAt | date:'medium' }}</td>
@@ -56,5 +52,9 @@
         </tr>
       </tbody>
     </table>
+  </div>
+  
+  <div class="mt-3">
+    <a routerLink="/dashboard" class="btn btn-link">← Back to Dashboard</a>
   </div>
 </div>
