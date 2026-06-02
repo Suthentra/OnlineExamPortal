@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Repositories.Interface;
 
 namespace OnlineExamPortal.API.Repositories.Implementation
@@ -6,50 +7,45 @@ namespace OnlineExamPortal.API.Repositories.Implementation
     public class SQLExamRepository : IExamRepository
     {
         private readonly IConfiguration configuration;
+        private readonly string connectionString;  // ← ADD THIS at class level
 
         public SQLExamRepository(IConfiguration configuration)
         {
             this.configuration = configuration;
+            connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");  // ← ADD THIS
         }
 
         public async Task<List<Exam>> GetAllAsync()
         {
             var exams = new List<Exam>();
 
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);  // ← Now it works
+            string sql = @"
+                SELECT 
+                    e.*, 
+                    (SELECT COUNT(*) FROM Questions WHERE ExamId = e.Id) AS TotalQuestions
+                FROM Exams e
+            ";
 
-            using SqlConnection connection =
-                new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            await conn.OpenAsync();
 
-            using SqlCommand command =
-                new SqlCommand("sp_GetAllExams", connection);
-
-            command.CommandType =
-                System.Data.CommandType.StoredProcedure;
-
-            await connection.OpenAsync();
-
-            using SqlDataReader reader =
-                await command.ExecuteReaderAsync();
+            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
-                var exam = new Exam
+                exams.Add(new Exam
                 {
-                    Id = Convert.ToInt32(reader["Id"]),
+                    Id = (int)reader["Id"],
                     Title = reader["Title"].ToString()!,
                     Description = reader["Description"].ToString()!,
-                    TotalMarks = Convert.ToInt32(reader["TotalMarks"]),
-                    DurationInMinutes = Convert.ToInt32(reader["DurationInMinutes"]),
-                    StartTime = Convert.ToDateTime(reader["StartTime"]),
-                    EndTime = Convert.ToDateTime(reader["EndTime"]),
-                    IsPublished = Convert.ToBoolean(reader["IsPublished"]),
-                    CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
-                    UserId = Convert.ToInt32(reader["UserId"])
-                };
-
-                exams.Add(exam);
+                    TotalMarks = (int)reader["TotalMarks"],
+                    DurationInMinutes = (int)reader["DurationInMinutes"],
+                    IsPublished = (bool)reader["IsPublished"],
+                    CreatedAt = (DateTime)reader["CreatedAt"],
+                    UserId = (int)reader["UserId"],
+                    TotalQuestions = reader["TotalQuestions"] != DBNull.Value ? (int)reader["TotalQuestions"] : 0
+                });
             }
 
             return exams;
@@ -57,24 +53,14 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task<Exam?> GetByIdAsync(int id)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_GetExamById", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", id);
 
-            using SqlConnection connection =
-                new SqlConnection(connectionString);
+            await conn.OpenAsync();
 
-            using SqlCommand command =
-                new SqlCommand("sp_GetExamById", connection);
-
-            command.CommandType =
-                System.Data.CommandType.StoredProcedure;
-
-            command.Parameters.AddWithValue("@Id", id);
-
-            await connection.OpenAsync();
-
-            using SqlDataReader reader =
-                await command.ExecuteReaderAsync();
+            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
             if (await reader.ReadAsync())
             {
@@ -98,115 +84,85 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task CreateAsync(Exam exam)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_CreateExam", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
 
-            using SqlConnection connection =
-                new SqlConnection(connectionString);
+            cmd.Parameters.AddWithValue("@Title", exam.Title);
+            cmd.Parameters.AddWithValue("@Description", exam.Description);
+            cmd.Parameters.AddWithValue("@TotalMarks", exam.TotalMarks);
+            cmd.Parameters.AddWithValue("@DurationInMinutes", exam.DurationInMinutes);
+            cmd.Parameters.AddWithValue("@StartTime", exam.StartTime);
+            cmd.Parameters.AddWithValue("@EndTime", exam.EndTime);
+            cmd.Parameters.AddWithValue("@UserId", exam.UserId);
 
-            using SqlCommand command =
-                new SqlCommand("sp_CreateExam", connection);
-
-            command.CommandType =
-                System.Data.CommandType.StoredProcedure;
-
-            command.Parameters.AddWithValue("@Title", exam.Title);
-
-            command.Parameters.AddWithValue("@Description", exam.Description);
-
-            command.Parameters.AddWithValue("@TotalMarks", exam.TotalMarks);
-
-            command.Parameters.AddWithValue("@DurationInMinutes",
-                exam.DurationInMinutes);
-
-            command.Parameters.AddWithValue("@StartTime", exam.StartTime);
-
-            command.Parameters.AddWithValue("@EndTime", exam.EndTime);
-
-            command.Parameters.AddWithValue("@UserId", exam.UserId);
-
-            await connection.OpenAsync();
-
-            await command.ExecuteNonQueryAsync();
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task UpdateAsync(Exam exam)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_UpdateExam", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
 
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("sp_UpdateExam", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", exam.Id);
+            cmd.Parameters.AddWithValue("@Title", exam.Title);
+            cmd.Parameters.AddWithValue("@Description", exam.Description);
+            cmd.Parameters.AddWithValue("@TotalMarks", exam.TotalMarks);
+            cmd.Parameters.AddWithValue("@DurationInMinutes", exam.DurationInMinutes);
+            cmd.Parameters.AddWithValue("@StartTime", exam.StartTime);
+            cmd.Parameters.AddWithValue("@EndTime", exam.EndTime);
+            cmd.Parameters.AddWithValue("@IsPublished", exam.IsPublished);
 
-            command.Parameters.AddWithValue("@Id", exam.Id);
-            command.Parameters.AddWithValue("@Title", exam.Title);
-            command.Parameters.AddWithValue("@Description", exam.Description);
-            command.Parameters.AddWithValue("@TotalMarks", exam.TotalMarks);
-            command.Parameters.AddWithValue("@DurationInMinutes", exam.DurationInMinutes);
-            command.Parameters.AddWithValue("@StartTime", exam.StartTime);
-            command.Parameters.AddWithValue("@EndTime", exam.EndTime);
-            command.Parameters.AddWithValue("@IsPublished", exam.IsPublished);
-
-            await connection.OpenAsync();
-            await command.ExecuteNonQueryAsync();
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_DeleteExam", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", id);
 
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("sp_DeleteExam", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
-            command.Parameters.AddWithValue("@Id", id);
-
-            await connection.OpenAsync();
-            await command.ExecuteNonQueryAsync();
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task PublishAsync(int id)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_PublishExam", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", id);
 
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("sp_PublishExam", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
-            command.Parameters.AddWithValue("@Id", id);
-
-            await connection.OpenAsync();
-            await command.ExecuteNonQueryAsync();
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<bool> ExistsAsync(int id)
         {
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_ExamExists", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", id);
 
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("sp_ExamExists", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
-            command.Parameters.AddWithValue("@Id", id);
-
-            await connection.OpenAsync();
-            var result = await command.ExecuteScalarAsync();
+            await conn.OpenAsync();
+            var result = await cmd.ExecuteScalarAsync();
             return Convert.ToInt32(result) > 0;
         }
 
         public async Task<List<Exam>> GetPublishedExamsAsync()
         {
             var exams = new List<Exam>();
-            var connectionString = configuration
-                .GetConnectionString("OnlineExamPortalConnectionString");
 
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("sp_GetPublishedExams", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlCommand cmd = new SqlCommand("sp_GetPublishedExams", conn);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
 
-            await connection.OpenAsync();
-            using SqlDataReader reader = await command.ExecuteReaderAsync();
+            await conn.OpenAsync();
+            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
@@ -228,6 +184,5 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             return exams;
         }
-
     }
 }

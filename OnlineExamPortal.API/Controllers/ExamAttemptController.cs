@@ -26,8 +26,6 @@ namespace OnlineExamPortal.API.Controllers
             _examRepository = examRepository;
             _questionRepository = questionRepository;
             _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
-
-            // Debug - check if connection string is loaded
             Console.WriteLine($"Connection String loaded: {_connectionString != null}");
         }
 
@@ -86,41 +84,65 @@ namespace OnlineExamPortal.API.Controllers
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(_connectionString))
+                Console.WriteLine($"SubmitAnswer: AttemptId={request.AttemptId}, QuestionId={request.QuestionId}, Option={request.SelectedOption}");
+
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                // Verify attempt exists
+                string checkAttemptSql = "SELECT Status FROM ExamAttempts WHERE Id = @AttemptId";
+                SqlCommand checkAttemptCmd = new SqlCommand(checkAttemptSql, conn);
+                checkAttemptCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
+                var status = await checkAttemptCmd.ExecuteScalarAsync();
+
+                if (status == null || status.ToString() != "InProgress")
                 {
-                    await conn.OpenAsync();
-
-                    // Get correct answer
-                    string getCorrectSql = "SELECT CorrectAnswer FROM Questions WHERE Id = @QuestionId";
-                    SqlCommand getCmd = new SqlCommand(getCorrectSql, conn);
-                    getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
-                    string correctAnswer = (await getCmd.ExecuteScalarAsync())?.ToString() ?? "";
-
-                    bool isCorrect = request.SelectedOption == correctAnswer;
-
-                    // Insert answer
-                    string insertSql = @"
-                        IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
-                            UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
-                            WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
-                        ELSE
-                            INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOption, IsCorrect)
-                            VALUES (@AttemptId, @QuestionId, @SelectedOption, @IsCorrect)
-                    ";
-
-                    SqlCommand insertCmd = new SqlCommand(insertSql, conn);
-                    insertCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
-                    insertCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
-                    insertCmd.Parameters.AddWithValue("@SelectedOption", request.SelectedOption);
-                    insertCmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
-
-                    await insertCmd.ExecuteNonQueryAsync();
-
-                    return Ok(new { message = "Answer saved", isCorrect = isCorrect });
+                    return BadRequest(new { message = "Exam attempt not found or already submitted" });
                 }
+
+                // Get correct answer
+                string getCorrectSql = "SELECT CorrectAnswer FROM Questions WHERE Id = @QuestionId";
+                SqlCommand getCmd = new SqlCommand(getCorrectSql, conn);
+                getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                var correctAnswerObj = await getCmd.ExecuteScalarAsync();
+
+                if (correctAnswerObj == null)
+                {
+                    return BadRequest(new { message = $"Question ID {request.QuestionId} not found" });
+                }
+
+                string correctAnswer = correctAnswerObj.ToString();
+                bool isCorrect = request.SelectedOption == correctAnswer;
+
+                // Insert or update answer
+                string upsertSql = @"
+                    IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
+                        UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
+                        WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
+                    ELSE
+                        INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOption, IsCorrect)
+                        VALUES (@AttemptId, @QuestionId, @SelectedOption, @IsCorrect)
+                ";
+
+                SqlCommand upsertCmd = new SqlCommand(upsertSql, conn);
+                upsertCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
+                upsertCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
+                upsertCmd.Parameters.AddWithValue("@SelectedOption", request.SelectedOption);
+                upsertCmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
+
+                await upsertCmd.ExecuteNonQueryAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Answer submitted successfully",
+                    isCorrect = isCorrect,
+                    correctAnswer = correctAnswer
+                });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"SubmitAnswer Error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }
@@ -136,7 +158,6 @@ namespace OnlineExamPortal.API.Controllers
                 {
                     await conn.OpenAsync();
 
-                    // Calculate score and update
                     string sql = @"
                         DECLARE @TotalScore INT = ISNULL((SELECT SUM(q.Marks) 
                             FROM Answers a JOIN Questions q ON a.QuestionId = q.Id 
@@ -159,13 +180,35 @@ namespace OnlineExamPortal.API.Controllers
                             Percentage = @Percentage,
                             IsPassed = @IsPassed
                         WHERE Id = @AttemptId;
+                        
+                        SELECT @TotalScore AS Score, @TotalMarks AS TotalMarks, @Percentage AS Percentage, @IsPassed AS IsPassed;
                     ";
 
                     SqlCommand cmd = new SqlCommand(sql, conn);
                     cmd.Parameters.AddWithValue("@AttemptId", attemptId);
-                    await cmd.ExecuteNonQueryAsync();
 
-                    return Ok(new { message = "Exam submitted successfully" });
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    int score = 0;
+                    int totalMarks = 0;
+                    decimal percentage = 0;
+                    bool isPassed = false;
+
+                    if (await reader.ReadAsync())
+                    {
+                        score = reader["Score"] != DBNull.Value ? Convert.ToInt32(reader["Score"]) : 0;
+                        totalMarks = reader["TotalMarks"] != DBNull.Value ? Convert.ToInt32(reader["TotalMarks"]) : 0;
+                        percentage = reader["Percentage"] != DBNull.Value ? Convert.ToDecimal(reader["Percentage"]) : 0;
+                        isPassed = reader["IsPassed"] != DBNull.Value ? Convert.ToBoolean(reader["IsPassed"]) : false;
+                    }
+
+                    return Ok(new
+                    {
+                        message = "Exam submitted successfully",
+                        score = score,
+                        totalMarks = totalMarks,
+                        percentage = percentage,
+                        isPassed = isPassed
+                    });
                 }
             }
             catch (Exception ex)
@@ -181,6 +224,72 @@ namespace OnlineExamPortal.API.Controllers
         {
             var hasAttempted = await _examAttemptRepository.HasStudentAttemptedExamAsync(studentId, examId);
             return Ok(new { attempted = hasAttempted });
+        }
+
+        // GET: api/ExamAttempt/all
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllAttempts()
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = @"
+                    SELECT 
+                        ea.Id, 
+                        ea.UserId, 
+                        ea.ExamId, 
+                        ea.Score, 
+                        ea.Status, 
+                        ea.IsPassed, 
+                        ea.Percentage, 
+                        ea.StartedAt, 
+                        ea.SubmittedAt,
+                        e.Title AS ExamTitle, 
+                        e.TotalMarks,
+                        u.FullName AS StudentName,
+                        u.Email AS StudentEmail
+                    FROM ExamAttempts ea
+                    JOIN Exams e ON ea.ExamId = e.Id
+                    JOIN Users u ON ea.UserId = u.Id
+                    WHERE ea.Status = 'Completed'
+                    ORDER BY ea.SubmittedAt DESC
+                ";
+
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                await conn.OpenAsync();
+
+                var attempts = new List<object>();
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    attempts.Add(new
+                    {
+                        id = reader["Id"],
+                        userId = reader["UserId"],
+                        examId = reader["ExamId"],
+                        examTitle = reader["ExamTitle"],
+                        studentName = reader["StudentName"],
+                        studentEmail = reader["StudentEmail"],
+                        score = reader["Score"] != DBNull.Value ? Convert.ToInt32(reader["Score"]) : 0,
+                        totalMarks = reader["TotalMarks"] != DBNull.Value ? Convert.ToInt32(reader["TotalMarks"]) : 0,
+                        percentage = reader["Percentage"] != DBNull.Value ? Convert.ToDecimal(reader["Percentage"]) : 0,
+                        isPassed = reader["IsPassed"] != DBNull.Value ? Convert.ToBoolean(reader["IsPassed"]) : false,
+                        status = reader["Status"]?.ToString(),
+                        startedAt = reader["StartedAt"] != DBNull.Value ? Convert.ToDateTime(reader["StartedAt"]) : DateTime.MinValue,
+                        submittedAt = reader["SubmittedAt"] != DBNull.Value ? Convert.ToDateTime(reader["SubmittedAt"]) : DateTime.MinValue
+                    });
+                }
+
+                Console.WriteLine($"GetAllAttempts: Found {attempts.Count} attempts");
+                return Ok(attempts);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllAttempts Error: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

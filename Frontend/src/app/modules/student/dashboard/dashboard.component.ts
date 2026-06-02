@@ -11,14 +11,23 @@ import { ApiService } from '../../../shared/services/api.service';
 })
 export class DashboardComponent implements OnInit {
   user: any;
-  exams: any[] = [];
+  allExams: any[] = [];
+  availableExamsList: any[] = [];
   results: any[] = [];
-  attemptedExams: Set<number> = new Set();
+  attemptedExams: Set<number> = new Set<number>();
   loading = true;
-  loadingResults = true;
-  activeTab: string = 'dashboard';
+  errorMessage = '';
 
-  recentActivities: any[] = [];
+  // Statistics
+  availableExams: number = 0;
+  completedExams: number = 0;
+  averageScore: number = 0;
+  studentRank: number = 0;
+  totalStudents: number = 0;
+  highestScore: number = 0;
+
+  // For UI
+  activeTab: string = 'exams';
 
   constructor(
     private auth: AuthService,
@@ -28,16 +37,41 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.auth.getUser();
-    this.loadExams();
-    this.loadResults();
+    this.loadDashboardData();
   }
 
-  loadExams() {
+  loadDashboardData() {
+    this.loadAllExams();
+    this.loadResults();
+    this.loadRank();
+  }
+
+  loadAllExams() {
     this.api.getPublishedExams().subscribe({
       next: (data: any) => {
-        this.exams = data;
-        this.checkAttemptedExams();
-        this.loading = false;
+        this.allExams = data;
+        
+        this.api.getStudentResults(this.user.userId).subscribe({
+          next: (results: any) => {
+            // Explicitly convert to number array
+            const examIds: number[] = results.map((r: any) => r.examId);
+            const completedExamIdsSet = new Set<number>(examIds);
+            
+            this.availableExamsList = data.filter((exam: any) => !completedExamIdsSet.has(exam.id));
+            this.availableExams = this.availableExamsList.length;
+            
+            // Clear and add each ID
+            this.attemptedExams.clear();
+            examIds.forEach(id => this.attemptedExams.add(id));
+            
+            this.loading = false;
+          },
+          error: () => {
+            this.availableExamsList = data;
+            this.availableExams = data.length;
+            this.loading = false;
+          }
+        });
       },
       error: () => {
         this.loading = false;
@@ -46,29 +80,46 @@ export class DashboardComponent implements OnInit {
   }
 
   loadResults() {
-    this.loadingResults = true;
     this.api.getStudentResults(this.user.userId).subscribe({
       next: (data: any) => {
         this.results = data;
-        this.updateRecentActivity();
-        this.loadingResults = false;
+        this.completedExams = data.length;
+        this.calculateAverageScore();
       },
-      error: () => {
-        this.loadingResults = false;
+      error: (err) => {
+        console.error('Error loading results:', err);
       }
     });
   }
 
-  checkAttemptedExams() {
-    this.exams.forEach(exam => {
-      this.api.checkExamAttempted(exam.id).subscribe({
-        next: (res: any) => {
-          if (res.attempted) {
-            this.attemptedExams.add(exam.id);
-          }
-        }
-      });
+  loadRank() {
+    this.api.getStudentRank(this.user.userId).subscribe({
+      next: (data: any) => {
+        this.studentRank = data.rank;
+        this.totalStudents = data.totalStudents;
+      },
+      error: (err) => {
+        console.error('Error loading rank:', err);
+        this.totalStudents = 4;
+        this.studentRank = 1;
+      }
     });
+  }
+
+  calculateAverageScore() {
+    if (this.results.length === 0) {
+      this.averageScore = 0;
+      return;
+    }
+    const total = this.results.reduce((sum, r) => sum + (r.percentage || 0), 0);
+    this.averageScore = Math.round(total / this.results.length);
+    this.highestScore = Math.max(...this.results.map(r => r.percentage || 0), 0);
+  }
+
+  getPassRate(): number {
+    if (this.results.length === 0) return 0;
+    const passedCount = this.results.filter(r => r.isPassed).length;
+    return Math.round((passedCount / this.results.length) * 100);
   }
 
   isExamAttempted(examId: number): boolean {
@@ -80,49 +131,33 @@ export class DashboardComponent implements OnInit {
       alert('You have already completed this exam.');
       return;
     }
-    this.router.navigate(['/exam', examId]);
+    if (confirm('Are you ready to start the exam? The timer will start immediately.')) {
+      this.router.navigate(['/exam', examId]);
+    }
   }
 
   viewResultDetail(attemptId: number) {
     this.router.navigate(['/result-detail', attemptId]);
   }
 
-  updateRecentActivity() {
-    this.recentActivities = this.results.slice(0, 3).map(r => ({
-      type: 'exam',
-      icon: 'fas fa-file-alt',
-      message: `Completed ${r.examTitle} with ${r.percentage}%`,
-      time: this.getTimeAgo(r.submittedAt)
-    }));
+  getRankMessage(): string {
+    if (this.studentRank === 1) return '🏆 Excellent! You are the Top Performer!';
+    if (this.studentRank <= 3) return '🌟 Outstanding performance!';
+    if (this.studentRank <= 10) return '👍 Great job! Keep it up!';
+    if (this.studentRank <= 20) return '📚 Good effort! Aim higher!';
+    return '💪 Keep practicing to improve your rank!';
   }
 
-  getTimeAgo(date: string): string {
-    const diff = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
-    return `${Math.floor(diff / 86400)} days ago`;
-  }
-
-  get availableExams(): number {
-    return this.exams.filter(e => !this.isExamAttempted(e.id)).length;
-  }
-
-  get completedExams(): number {
-    return this.results.length;
-  }
-
-  get averageScore(): number {
-    if (this.results.length === 0) return 0;
-    const total = this.results.reduce((sum, r) => sum + r.percentage, 0);
-    return Math.round(total / this.results.length);
-  }
-
-  get rank(): number {
-    return 15; // Placeholder - can be calculated from leaderboard
+  getRankIcon(): string {
+    if (this.studentRank === 1) return '🥇';
+    if (this.studentRank === 2) return '🥈';
+    if (this.studentRank === 3) return '🥉';
+    return '📊';
   }
 
   logout() {
-    this.auth.logout();
-  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
 }

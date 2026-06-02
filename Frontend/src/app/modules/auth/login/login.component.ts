@@ -27,23 +27,17 @@ export class LoginComponent {
 
     this.auth.login({ email: this.email, password: this.password }).subscribe({
       next: (res: any) => {
-        console.log('Login response:', res); // Debug
         this.auth.saveTokenAndUser(res);
-        
-        // Verify token was saved
-        const token = this.auth.getToken();
-        console.log('Saved token:', token); // Debug
-        
         const user = this.auth.getUser();
+        
         if (user?.userRole === 'Admin') {
-          this.router.navigate(['/admin']);
+          window.location.href = '/admin';
         } else {
-          this.router.navigate(['/dashboard']);
+          window.location.href = '/dashboard';
         }
         this.loading = false;
       },
-      error: (err: any) => {
-        console.error('Login error:', err);
+      error: () => {
         this.error = 'Invalid email or password';
         this.loading = false;
       }

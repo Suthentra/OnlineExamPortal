@@ -213,5 +213,69 @@ namespace OnlineExamPortal.API.Controllers
 
             return Ok(result);
         }
+
+        // GET: api/Results/rank/{studentId}
+        [HttpGet("rank/{studentId}")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetStudentRank(int studentId)
+        {
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            // Get all students with their average scores
+            string sql = @"
+                WITH StudentScores AS (
+                    SELECT 
+                        u.Id AS UserId,
+                        u.FullName,
+                        ISNULL(AVG(ea.Percentage), 0) AS AverageScore,
+                        COUNT(ea.Id) AS ExamsTaken
+                    FROM Users u
+                    LEFT JOIN ExamAttempts ea ON u.Id = ea.UserId AND ea.Status = 'Completed'
+                    WHERE u.UserRole = 'Student'
+                    GROUP BY u.Id, u.FullName
+                ),
+                RankedStudents AS (
+                    SELECT 
+                        UserId,
+                        FullName,
+                        AverageScore,
+                        ExamsTaken,
+                        RANK() OVER (ORDER BY AverageScore DESC, ExamsTaken DESC) AS StudentRank
+                    FROM StudentScores
+                )
+                SELECT 
+                    StudentRank,
+                    (SELECT COUNT(*) FROM Users WHERE UserRole = 'Student') AS TotalStudents
+                FROM RankedStudents
+                WHERE UserId = @StudentId
+            ";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@StudentId", studentId);
+
+            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                int rank = reader["StudentRank"] != DBNull.Value ? Convert.ToInt32(reader["StudentRank"]) : 0;
+                int totalStudents = reader["TotalStudents"] != DBNull.Value ? Convert.ToInt32(reader["TotalStudents"]) : 0;
+
+                return Ok(new { rank = rank, totalStudents = totalStudents });
+            }
+
+            // If student has no exams, they should be last
+            int total = await GetTotalStudentsCount();
+            return Ok(new { rank = total, totalStudents = total });
+        }
+
+        private async Task<int> GetTotalStudentsCount()
+        {
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "SELECT COUNT(*) FROM Users WHERE UserRole = 'Student'";
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            await conn.OpenAsync();
+            return (int)await cmd.ExecuteScalarAsync();
+        }
     }
 }

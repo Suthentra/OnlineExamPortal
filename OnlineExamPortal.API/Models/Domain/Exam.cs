@@ -6,7 +6,7 @@
 
     public int TotalMarks { get; set; }
     public int DurationInMinutes { get; set; }
-
+    public int TotalQuestions { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
 

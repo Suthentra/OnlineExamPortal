@@ -23,7 +23,7 @@
   </div>
 
   <!-- Results Table -->
-  <div *ngIf="!loading && results.length > 0" class="table-responsive">
+  <div class="table-responsive" *ngIf="!loading && results.length > 0">
     <table class="table table-bordered table-hover">
       <thead class="table-dark">
         <tr>
@@ -44,7 +44,7 @@
           </td>
           <td>
             <span class="badge" [class.bg-success]="result.isPassed" [class.bg-danger]="!result.isPassed">
-              {{ result.isPassed ? 'Passed' : 'Failed' }}
+              {{ result.isPassed ? 'Passed ✅' : 'Failed ❌' }}
             </span>
           </td>
           <td>{{ result.submittedAt | date:'medium' }}</td>
@@ -53,8 +53,62 @@
               View Details
             </button>
           </td>
-        </tr>
-      </tbody>
-    </table>
+        </table>
+  </div>
+</div>
+
+<!-- Modal for Result Details -->
+<div class="modal-overlay" *ngIf="showDetailModal" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>📊 Result Details</h3>
+      <button class="modal-close" (click)="closeModal()">✖</button>
+    </div>
+    <div class="modal-body" *ngIf="selectedResult">
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-value">{{ selectedResult.score }}/{{ selectedResult.totalMarks }}</div>
+          <div class="summary-label">Total Score</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value">{{ selectedResult.percentage }}%</div>
+          <div class="summary-label">Percentage</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value">{{ getCorrectCount() }}</div>
+          <div class="summary-label">Correct</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value">{{ getWrongCount() }}</div>
+          <div class="summary-label">Wrong</div>
+        </div>
+      </div>
+
+      <!-- Status Badge -->
+      <div class="status-section" [class.passed-bg]="selectedResult.isPassed" [class.failed-bg]="!selectedResult.isPassed">
+        <h3>{{ selectedResult.isPassed ? '✅ PASSED' : '❌ FAILED' }}</h3>
+      </div>
+
+      <!-- Answer Details -->
+      <h4>Answer Details</h4>
+      <div class="answers-list">
+        <div *ngFor="let answer of selectedAnswers; let i = index" class="answer-item" [class.correct]="answer.isCorrect" [class.wrong]="!answer.isCorrect">
+          <div class="question-number">Q{{ i + 1 }}</div>
+          <div class="question-text">{{ answer.questionText }}</div>
+          <div class="answer-details">
+            <div>Your Answer: <strong>{{ answer.yourAnswer || 'Not Answered' }}</strong></div>
+            <div>Correct Answer: <strong>{{ answer.correctAnswer }}</strong></div>
+          </div>
+          <div class="answer-status">
+            <span *ngIf="answer.isCorrect">✅ Correct</span>
+            <span *ngIf="!answer.isCorrect">❌ Wrong</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeModal()">Close</button>
+    </div>
   </div>
 </div>

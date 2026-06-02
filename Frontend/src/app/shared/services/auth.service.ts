@@ -19,10 +19,10 @@ export class AuthService {
   }
 
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    this.router.navigate(['/login']);
-  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';  // ← Use href instead of navigate
+}
 
   getToken(): string | null {
     return localStorage.getItem('token');

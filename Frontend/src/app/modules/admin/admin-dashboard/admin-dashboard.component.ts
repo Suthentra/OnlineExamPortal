@@ -13,8 +13,24 @@ export class AdminDashboardComponent implements OnInit {
   user: any;
   exams: any[] = [];
   students: any[] = [];
+  attempts: any[] = [];
   loading = true;
-  activeTab: string = 'dashboard';  // ← ADD THIS
+  activeTab: string = 'dashboard';
+
+  // Modal properties
+  showModal: boolean = false;
+  modalTitle: string = '';
+  modalData: any = [];
+  modalType: string = '';
+
+  // Statistics
+  totalExams: number = 0;
+  totalStudents: number = 0;
+  totalAttempts: number = 0;
+  passRate: number = 0;
+  passedCount: number = 0;
+  failedCount: number = 0;
+  averageScore: number = 0;
 
   constructor(
     private auth: AuthService,
@@ -24,66 +40,205 @@ export class AdminDashboardComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.auth.getUser();
-    this.loadData();
+    this.loadDashboardData();
   }
 
-  loadData() {
+  loadDashboardData() {
+    this.loadExams();
+    this.loadStudents();
+    this.loadAttempts();
+  }
+
+  loadExams() {
     this.api.getAllExams().subscribe({
       next: (data: any) => {
         this.exams = data;
+        this.totalExams = data.length;
         this.loading = false;
       },
       error: () => {
         this.loading = false;
       }
     });
-    
+  }
+
+  loadStudents() {
     this.api.getAllUsers().subscribe({
       next: (data: any) => {
-        this.students = data.filter((u: any) => u.userRole === 'Student');
+        // Filter only students and sort by registration date (newest first)
+        this.students = data
+          .filter((u: any) => u.userRole === 'Student')
+          .sort((a: any, b: any) => {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+        this.totalStudents = this.students.length;
+      },
+      error: (err: any) => {
+        console.error('Error loading students:', err);
       }
     });
   }
 
-  get totalStudents(): number {
-    return this.students.length;
+  loadAttempts() {
+  console.log('Loading attempts...');
+  this.api.getAllAttempts().subscribe({
+    next: (data: any) => {
+      console.log('Raw attempts data from API:', data);
+      this.attempts = data.filter((a: any) => a.status === 'Completed');
+      console.log('Filtered attempts (Completed only):', this.attempts);
+      this.totalAttempts = this.attempts.length;
+      this.passedCount = this.attempts.filter((a: any) => a.isPassed).length;
+      this.failedCount = this.totalAttempts - this.passedCount;
+      this.passRate = this.totalAttempts > 0 
+        ? Math.round((this.passedCount / this.totalAttempts) * 100) 
+        : 0;
+      this.calculateAverageScore();
+    },
+    error: (err: any) => {
+      console.error('Error loading attempts:', err);
+    }
+  });
+}
+
+  calculateAverageScore() {
+    if (this.attempts.length === 0) {
+      this.averageScore = 0;
+      return;
+    }
+    const total = this.attempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0);
+    this.averageScore = Math.round(total / this.attempts.length);
   }
 
-  get totalQuestions(): number {
-    return this.exams.reduce((sum, e) => sum + (e.totalQuestions || 0), 0);
+  // ========== CARD CLICK HANDLERS ==========
+
+  showExamList() {
+    this.modalTitle = '📋 All Exams';
+    this.modalType = 'exams';
+    this.modalData = this.exams.map(e => ({
+      id: e.id,
+      title: e.title,
+      status: e.isPublished ? 'Published ✅' : 'Draft 📝',
+      questions: e.totalQuestions || 0
+    }));
+    this.showModal = true;
   }
 
-  get averageScore(): number {
-    return 72;
+  showStudentList() {
+    this.modalTitle = '👨‍🎓 Student Performance';
+    this.modalType = 'students';
+    
+    // Students are already sorted by createdAt (newest first) from loadStudents
+    this.modalData = this.students.map(s => {
+      const studentAttempts = this.attempts.filter(a => a.userId === s.id);
+      const avgScore = studentAttempts.length > 0
+        ? Math.round(studentAttempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / studentAttempts.length)
+        : 0;
+      return {
+        id: s.id,
+        name: s.fullName,
+        email: s.email,
+        registeredOn: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : 'N/A',
+        attemptsCount: studentAttempts.length,
+        avgScore: avgScore,
+        lastAttempt: studentAttempts.length > 0 ? studentAttempts[studentAttempts.length - 1].submittedAt : null
+      };
+    });
+    this.showModal = true;
   }
+
+  showAttemptsList() {
+    this.modalTitle = '📊 All Exam Attempts';
+    this.modalType = 'attempts';
+    this.modalData = this.attempts.map(a => ({
+      studentName: this.getStudentName(a.userId),
+      examTitle: this.getExamTitle(a.examId),
+      score: a.score,
+      totalMarks: a.totalMarks || 100,
+      percentage: a.percentage,
+      status: a.isPassed ? '✅ Passed' : '❌ Failed',
+      submittedAt: new Date(a.submittedAt).toLocaleString()
+    }));
+    this.showModal = true;
+  }
+
+  showAverageScore() {
+    this.modalTitle = '📊 Average Score Analysis';
+    this.modalType = 'averagescore';
+    this.modalData = {
+      averageScore: this.averageScore,
+      totalAttempts: this.totalAttempts,
+      totalStudents: this.totalStudents,
+      passRate: this.passRate
+    };
+    this.showModal = true;
+  }
+
+  // ========== EXAM CRUD METHODS ==========
 
   createExam() {
     this.router.navigate(['/admin/create-exam']);
   }
 
-  editExam(id: number) {
-    this.router.navigate(['/admin/edit-exam', id]);
+  editExam(examId: number) {
+    this.router.navigate(['/admin/edit-exam', examId]);
   }
 
-  addQuestions(id: number) {
-    this.router.navigate(['/admin/add-questions', id]);
+  addQuestions(examId: number) {
+    this.router.navigate(['/admin/add-questions', examId]);
   }
 
-  publishExam(id: number) {
-    this.api.publishExam(id).subscribe(() => this.loadData());
+  publishExam(examId: number) {
+    this.api.publishExam(examId).subscribe({
+      next: () => {
+        this.loadExams();
+      },
+      error: (err: any) => {
+        console.error('Failed to publish:', err);
+      }
+    });
   }
 
-  deleteExam(id: number) {
-    if (confirm('Delete this exam?')) {
-      this.api.deleteExam(id).subscribe(() => this.loadData());
+  deleteExam(examId: number) {
+    if (confirm('Are you sure you want to delete this exam? All questions will also be deleted.')) {
+      this.api.deleteExam(examId).subscribe({
+        next: () => {
+          this.loadExams();
+        },
+        error: (err: any) => {
+          console.error('Failed to delete:', err);
+        }
+      });
     }
   }
 
-  viewResults(id: number) {
-    this.router.navigate(['/admin/exam-results', id]);
+  viewResults(examId: number) {
+    this.router.navigate(['/admin/exam-results', examId]);
+  }
+
+  // ========== HELPER METHODS ==========
+
+  getStudentName(userId: number): string {
+    const student = this.students.find(s => s.id === userId);
+    return student ? student.fullName : 'Unknown';
+  }
+
+  getExamTitle(examId: number): string {
+    const exam = this.exams.find(e => e.id === examId);
+    return exam ? exam.title : 'Unknown';
+  }
+
+  viewStudentDetails(studentId: number) {
+    this.showModal = false;
+    this.router.navigate(['/admin/student-performance', studentId]);
+  }
+
+  closeModal() {
+    this.showModal = false;
   }
 
   logout() {
-    this.auth.logout();
-  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
 }

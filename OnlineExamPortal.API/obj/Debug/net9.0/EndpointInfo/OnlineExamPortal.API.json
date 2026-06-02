@@ -152,75 +152,6 @@
         }
       }
     },
-    "/api/ExamAttempt/{attemptId}": {
-      "get": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "parameters": [
-          {
-            "name": "attemptId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/ExamAttempt/student/{studentId}": {
-      "get": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "parameters": [
-          {
-            "name": "studentId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/ExamAttempt/result/{attemptId}": {
-      "get": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "parameters": [
-          {
-            "name": "attemptId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/ExamAttempt/check/{studentId}/{examId}": {
       "get": {
         "tags": [
@@ -253,30 +184,11 @@
         }
       }
     },
-    "/api/ExamAttempt/save-result": {
-      "post": {
+    "/api/ExamAttempt/all": {
+      "get": {
         "tags": [
           "ExamAttempt"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SaveResultDto"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SaveResultDto"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/SaveResultDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "OK"
@@ -702,6 +614,29 @@
         }
       }
     },
+    "/api/Results/rank/{studentId}": {
+      "get": {
+        "tags": [
+          "Results"
+        ],
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Users": {
       "get": {
         "tags": [
@@ -957,31 +892,6 @@
           "password": {
             "type": "string",
             "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "SaveResultDto": {
-        "type": "object",
-        "properties": {
-          "attemptId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "score": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "totalMarks": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "percentage": {
-            "type": "number",
-            "format": "double"
-          },
-          "isPassed": {
-            "type": "boolean"
           }
         },
         "additionalProperties": false

@@ -13,27 +13,34 @@ export class RegisterComponent {
   email = '';
   password = '';
   confirmPassword = '';
-  message = '';
-  isError = false;
+  errorMessage = '';
+  successMessage = '';
   loading = false;
 
   constructor(private auth: AuthService, private router: Router) {}
 
   onSubmit() {
+    // Reset messages
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    // Validation
     if (!this.fullName || !this.email || !this.password) {
-      this.message = 'All fields are required';
-      this.isError = true;
+      this.errorMessage = 'All fields are required';
       return;
     }
 
     if (this.password !== this.confirmPassword) {
-      this.message = 'Passwords do not match';
-      this.isError = true;
+      this.errorMessage = 'Passwords do not match';
+      return;
+    }
+
+    if (this.password.length < 6) {
+      this.errorMessage = 'Password must be at least 6 characters';
       return;
     }
 
     this.loading = true;
-    this.message = '';
 
     this.auth.register({
       fullName: this.fullName,
@@ -41,14 +48,12 @@ export class RegisterComponent {
       password: this.password
     }).subscribe({
       next: () => {
-        this.message = 'Registration successful! Redirecting to login...';
-        this.isError = false;
+        this.successMessage = 'Registration successful! Redirecting to login...';
         this.loading = false;
         setTimeout(() => this.router.navigate(['/login']), 2000);
       },
       error: (err) => {
-        this.message = err.error?.message || 'Registration failed';
-        this.isError = true;
+        this.errorMessage = err.error?.message || 'Registration failed';
         this.loading = false;
       }
     });

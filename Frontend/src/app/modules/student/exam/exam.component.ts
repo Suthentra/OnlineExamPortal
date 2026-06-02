@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import * as confetti from 'canvas-confetti';
 
 @Component({
   selector: 'app-exam',
@@ -44,6 +45,7 @@ export class ExamComponent implements OnInit, OnDestroy {
   startExam() {
     this.api.startExam({ examId: this.examId, studentId: this.user.userId }).subscribe({
       next: (res: any) => {
+        console.log('Exam started response:', res);
         this.attemptId = res.id;
         this.examTitle = res.examTitle;
         this.questions = res.questions;
@@ -51,11 +53,17 @@ export class ExamComponent implements OnInit, OnDestroy {
         this.selectedAnswers = new Array(this.questions.length).fill('');
         this.startTimer();
         this.loading = false;
+        
+        console.log('Questions loaded:');
+        this.questions.forEach((q, i) => {
+          console.log(`Question ${i + 1}: ID = ${q.questionId}`);
+        });
       },
       error: (err: any) => {
+        console.error('Start exam error:', err);
         this.errorMessage = err.error?.message || 'Failed to start exam';
         this.loading = false;
-        setTimeout(() => this.router.navigate(['/dashboard']), 2000);
+        setTimeout(() => this.router.navigate(['/dashboard']), 3000);
       }
     });
   }
@@ -71,20 +79,46 @@ export class ExamComponent implements OnInit, OnDestroy {
   }
 
   selectAnswer(option: string) {
+    const currentQuestion = this.questions[this.currentIndex];
+    const questionId = currentQuestion?.questionId;
+    
+    console.log('=== SELECTING ANSWER ===');
+    console.log('Current Index:', this.currentIndex);
+    console.log('Question ID being sent:', questionId);
+    console.log('Selected Option:', option);
+    
+    if (!questionId || questionId === 0) {
+      console.error('ERROR: Invalid Question ID!', questionId);
+      this.errorMessage = 'Invalid question. Please refresh and try again.';
+      return;
+    }
+    
     this.selectedAnswers[this.currentIndex] = option;
     
-    const questionId = this.questions[this.currentIndex].id;
     this.api.submitAnswer({
       attemptId: this.attemptId,
       questionId: questionId,
       selectedOption: option
     }).subscribe({
-      error: (err) => console.error('Save error:', err)
+      next: (response: any) => {
+        console.log('Answer saved successfully:', response);
+      },
+      error: (err: any) => {
+        console.error('Failed to save answer:', err);
+      }
     });
   }
 
   getCurrentQuestion() {
     return this.questions[this.currentIndex];
+  }
+
+  getCurrentQuestionId(): number {
+    return this.getCurrentQuestion()?.questionId;
+  }
+
+  getSelectedAnswerForCurrentQuestion(): string {
+    return this.selectedAnswers[this.currentIndex] || '';
   }
 
   next() {
@@ -107,6 +141,10 @@ export class ExamComponent implements OnInit, OnDestroy {
     return this.selectedAnswers.filter(a => a !== '').length;
   }
 
+  getRemainingCount(): number {
+    return this.questions.length - this.getAnsweredCount();
+  }
+
   formatTime() {
     const mins = Math.floor(this.timeLeft / 60);
     const secs = this.timeLeft % 60;
@@ -119,37 +157,21 @@ export class ExamComponent implements OnInit, OnDestroy {
     if (confirm('Are you sure you want to submit your exam?')) {
       this.loading = true;
       
-      // Calculate score
-      let totalScore = 0;
-      let totalMarks = 0;
-      
-      for (let i = 0; i < this.questions.length; i++) {
-        const question = this.questions[i];
-        totalMarks += question.marks;
-        const userAnswer = this.selectedAnswers[i];
-        if (userAnswer === question.correctAnswer) {
-          totalScore += question.marks;
-        }
-      }
-      
-      const percentage = (totalScore * 100) / totalMarks;
-      const isPassed = percentage >= 40;
-      
-      const resultData = {
-        attemptId: this.attemptId,
-        score: totalScore,
-        totalMarks: totalMarks,
-        percentage: percentage,
-        isPassed: isPassed
-      };
-      
-      console.log('Submitting result:', resultData);
-      
-      this.api.saveExamResult(resultData).subscribe({
+      this.api.submitExam(this.attemptId).subscribe({
         next: (response: any) => {
-          console.log('Submit response:', response);
+          console.log('Exam submitted:', response);
+          
+          // 🎉 Show confetti if passed
+          if (response.isPassed) {
+            this.celebratePass();
+          }
+          
+          // Single alert
+          alert(`Exam Submitted!\n\nScore: ${response.score}/${response.totalMarks}\nPercentage: ${response.percentage}%\nStatus: ${response.isPassed ? 'Passed ✅' : 'Failed ❌'}`);
+          
           this.submitted = true;
           this.loading = false;
+          
           setTimeout(() => {
             this.router.navigate(['/results']);
           }, 2000);
@@ -160,7 +182,28 @@ export class ExamComponent implements OnInit, OnDestroy {
           this.loading = false;
         }
       });
+    } else {
+      this.startTimer();
     }
+  }
+
+  celebratePass() {
+    // Basic confetti
+    confetti.default({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+    
+    // Second burst with colors
+    setTimeout(() => {
+      confetti.default({
+        particleCount: 100,
+        spread: 100,
+        origin: { y: 0.5 },
+        colors: ['#4361ee', '#06ffa5', '#f8961e', '#f72585']
+      });
+    }, 200);
   }
 
   logout() {

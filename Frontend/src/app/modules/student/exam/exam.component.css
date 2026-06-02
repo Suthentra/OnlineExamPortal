@@ -1,29 +1,103 @@
-.form-check {
-  transition: all 0.3s ease;
+/* Option Cards */
+.option-card {
   cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
 }
 
-.form-check:hover {
+.option-card:hover {
   transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background-color: #e9ecef;
 }
 
-.form-check-input:checked + label {
+.option-card.selected {
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+  color: white;
+  border-color: #4361ee !important;
+}
+
+.option-letter {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold;
+  color: #1e2a4a;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.option-letter.selected {
+  background: white;
+  color: #4361ee;
 }
 
+.option-text {
+  flex: 1;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.nav-btn.answered {
+  background-color: #28a745;
+  color: white;
+}
+
+.nav-btn.not-answered {
+  background-color: #6c757d;
+  color: white;
+}
+
+.nav-btn.current {
+  background-color: #007bff;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,123,255,0.5);
+}
+
+/* Fixed Header */
+.fixed-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1030;
+}
+
+.mt-5.pt-5 {
+  margin-top: 100px !important;
+  padding-top: 20px !important;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .btn {
-    padding: 8px 16px;
-    font-size: 14px;
+  .nav-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 12px;
   }
   
-  .card-body {
-    padding: 15px;
+  .option-card {
+    padding: 12px !important;
+  }
+  
+  .option-letter {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
   }
 }
