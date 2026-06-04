@@ -1,6 +1,22 @@
 [
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.AuthController",
+    "Method": "CheckEmailAvailability",
+    "RelativePath": "api/Auth/check-email/{email}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "email",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.AuthController",
     "Method": "Login",
     "RelativePath": "api/Auth/login",
     "HttpMethod": "POST",
@@ -216,6 +232,37 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "OnlineExamPortal.API.Controllers.QuestionBankController",
+    "Method": "GetAll",
+    "RelativePath": "api/QuestionBank",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.QuestionBankController",
+    "Method": "AddToExam",
+    "RelativePath": "api/QuestionBank/add-to-exam/{examId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "examId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "questionIds",
+        "Type": "System.Collections.Generic.List\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "OnlineExamPortal.API.Controllers.QuestionsController",
     "Method": "GetQuestionById",
     "RelativePath": "api/Questions/{id}",
@@ -271,7 +318,7 @@
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.QuestionsController",
     "Method": "BulkCreateQuestions",
-    "RelativePath": "api/Questions/bulk/exam/{examId}",
+    "RelativePath": "api/Questions/bulk/{examId}",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
@@ -282,8 +329,8 @@
         "IsRequired": true
       },
       {
-        "Name": "request",
-        "Type": "OnlineExamPortal.API.Models.DTOs.Question.BulkCreateQuestionDto",
+        "Name": "questions",
+        "Type": "System.Collections.Generic.List\u00601[[OnlineExamPortal.API.Models.DTOs.Question.CreateQuestionRequestDto, OnlineExamPortal.API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "IsRequired": true
       }
     ],

@@ -4,6 +4,7 @@ using Microsoft.OpenApi.Models;
 using OnlineExamPortal.API.Helpers;
 using OnlineExamPortal.API.Repositories.Implementation;
 using OnlineExamPortal.API.Repositories.Interface;
+using OnlineExamPortal.API.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,7 +59,8 @@ builder.Services.AddScoped<IQuestionRepository, SQLQuestionRepository>();
 builder.Services.AddScoped<IExamAttemptRepository, SQLExamAttemptRepository>();
 // Register JWT Helper
 builder.Services.AddScoped<IJwtHelper, JwtHelper>();
-
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISectionRepository, SQLSectionRepository>();
 // Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "THIS_IS_MY_SUPER_SECRET_KEY_12345";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];

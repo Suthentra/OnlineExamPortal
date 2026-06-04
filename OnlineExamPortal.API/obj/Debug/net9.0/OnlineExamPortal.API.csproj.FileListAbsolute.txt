@@ -78,3 +78,6 @@ D:\Projects\OnlineExamPortal\OnlineExamPortal.API\obj\Debug\net9.0\OnlineExamPor
 D:\Projects\OnlineExamPortal\OnlineExamPortal.API\obj\Debug\net9.0\ref\OnlineExamPortal.API.dll
 D:\Projects\OnlineExamPortal\OnlineExamPortal.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
 D:\Projects\OnlineExamPortal\OnlineExamPortal.API\obj\Debug\net9.0\OnlineExamPortal.API.sourcelink.json
+D:\Projects\OnlineExamPortal\OnlineExamPortal.API\bin\Debug\net9.0\BouncyCastle.Cryptography.dll
+D:\Projects\OnlineExamPortal\OnlineExamPortal.API\bin\Debug\net9.0\MailKit.dll
+D:\Projects\OnlineExamPortal\OnlineExamPortal.API\bin\Debug\net9.0\MimeKit.dll

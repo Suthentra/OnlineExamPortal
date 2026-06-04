@@ -1,3 +1,7 @@
+/* ========================================
+   DASHBOARD COMPONENT STYLES
+   ======================================== */
+
 /* Container */
 .dashboard-container {
   display: flex;
@@ -108,6 +112,36 @@
 
 .text-muted {
   color: #6c757d !important;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.btn-dark-mode {
+  background: #e9ecef;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-dark-mode:hover {
+  background: #dee2e6;
+  transform: scale(1.05);
+}
+
+.btn-dark-mode i {
+  font-size: 18px;
+  color: #1e2a4a;
 }
 
 .btn-logout {
@@ -576,7 +610,199 @@
   border: 1px solid #bfdbfe;
 }
 
-/* Responsive */
+/* ========================================
+   DARK MODE STYLES (FIXED - NOT IN MEDIA QUERY)
+   ======================================== */
+
+body.dark-mode {
+  background-color: #121212 !important;
+}
+
+body.dark-mode .dashboard-container {
+  background-color: #121212 !important;
+}
+
+body.dark-mode .main-content {
+  background-color: #121212 !important;
+}
+
+body.dark-mode .top-bar {
+  background-color: #1e1e2e !important;
+  border-bottom: 1px solid #333 !important;
+}
+
+body.dark-mode .top-bar h2 {
+  color: white !important;
+}
+
+body.dark-mode .top-bar .text-muted {
+  color: #aaa !important;
+}
+
+body.dark-mode .stat-card {
+  background-color: #1e1e2e !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .stat-info h3 {
+  color: white !important;
+}
+
+body.dark-mode .stat-info p {
+  color: #aaa !important;
+}
+
+body.dark-mode .section-card {
+  background-color: #1e1e2e !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .section-header h3 {
+  color: white !important;
+}
+
+body.dark-mode .activity-item {
+  background-color: #2a2a3e !important;
+}
+
+body.dark-mode .activity-details p {
+  color: white !important;
+}
+
+body.dark-mode .activity-details span {
+  color: #aaa !important;
+}
+
+body.dark-mode .sidebar {
+  background: linear-gradient(180deg, #0f0f1a 0%, #0a0a15 100%) !important;
+}
+
+body.dark-mode .logo-area span,
+body.dark-mode .user-info div div {
+  color: white !important;
+}
+
+body.dark-mode .nav-link {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+body.dark-mode .nav-link:hover,
+body.dark-mode .nav-link.active {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}
+
+body.dark-mode .exam-card {
+  background-color: #1e1e2e !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .exam-header {
+  background-color: #16213e !important;
+}
+
+body.dark-mode .exam-body h4 {
+  color: white !important;
+}
+
+body.dark-mode .exam-body p {
+  color: #aaa !important;
+}
+
+body.dark-mode .exam-meta {
+  color: #aaa !important;
+}
+
+body.dark-mode .results-table {
+  background-color: #1e1e2e !important;
+}
+
+body.dark-mode .results-table th {
+  background-color: #16213e !important;
+  color: white !important;
+}
+
+body.dark-mode .results-table td {
+  color: #e0e0e0 !important;
+  border-bottom-color: #333 !important;
+}
+
+body.dark-mode .results-table tr:hover {
+  background-color: #2a2a3e !important;
+}
+
+body.dark-mode .rank-card-large {
+  background: linear-gradient(135deg, #1a1a3e, #0f0f2a) !important;
+}
+
+body.dark-mode .performance-summary {
+  background-color: #1e1e2e !important;
+}
+
+body.dark-mode .performance-summary h3 {
+  color: white !important;
+}
+
+body.dark-mode .perf-label {
+  color: #aaa !important;
+}
+
+body.dark-mode .perf-value {
+  color: white !important;
+}
+
+body.dark-mode .btn-logout {
+  background-color: #dc2626 !important;
+}
+
+body.dark-mode .btn-dark-mode {
+  background-color: #2a2a3e !important;
+}
+
+body.dark-mode .btn-dark-mode i {
+  color: #ffd700 !important;
+}
+
+body.dark-mode .status-badge.passed {
+  background-color: #1a3a2a !important;
+  color: #6fcf97 !important;
+}
+
+body.dark-mode .status-badge.failed {
+  background-color: #3a1a1a !important;
+  color: #ff6b6b !important;
+}
+
+body.dark-mode .completed-status {
+  background-color: #1a3a2a !important;
+  color: #6fcf97 !important;
+}
+
+body.dark-mode .available-status {
+  background-color: #1a2a4a !important;
+  color: #7ab8ff !important;
+}
+
+body.dark-mode .alert-info {
+  background-color: #1a2a3a !important;
+  color: #7ab8ff !important;
+  border-color: #2a3a4a !important;
+}
+
+body.dark-mode .btn-view {
+  background-color: #2a2a3e !important;
+  color: #7ab8ff !important;
+}
+
+body.dark-mode .btn-view:hover {
+  background-color: #4361ee !important;
+  color: white !important;
+}
+
+/* ========================================
+   RESPONSIVE MEDIA QUERY (MOVED TO BOTTOM)
+   ======================================== */
+
 @media (max-width: 768px) {
   .sidebar {
     width: 80px;

@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'; 
 import { Component, OnInit, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
@@ -48,21 +49,22 @@ export class ResultsComponent implements OnInit {
   }
 
   viewResultDetail(attemptId: number) {
-    this.api.getResultByAttempt(attemptId).subscribe({
-      next: (data: any) => {
-        this.selectedResult = data;
-        this.selectedAnswers = data.answers || [];
-        this.showDetailModal = true;
-        
-        // Push a dummy state to catch back button
-        history.pushState({ modalOpen: true }, '', location.href);
-      },
-      error: (err: any) => {
-        console.error('Error loading result details:', err);
-        alert('Failed to load result details');
-      }
-    });
-  }
+  console.log('View Details clicked for attempt:', attemptId);
+  
+  this.api.getResultByAttempt(attemptId).subscribe({
+    next: (data: any) => {
+      console.log('Data received:', data);
+      this.selectedResult = data;
+      this.selectedAnswers = data.answers || [];
+      this.showDetailModal = true;
+      console.log('Modal should open:', this.showDetailModal);
+    },
+    error: (err: any) => {
+      console.error('Error loading result details:', err);
+      alert('Failed to load result details');
+    }
+  });
+}
 
   closeModal() {
     this.showDetailModal = false;

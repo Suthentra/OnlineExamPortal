@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using OnlineExamPortal.API.Helpers;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Auth;
 using OnlineExamPortal.API.Repositories.Interface;
-using OnlineExamPortal.API.Helpers;
 
 namespace OnlineExamPortal.API.Controllers
 {
@@ -26,15 +27,21 @@ namespace OnlineExamPortal.API.Controllers
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
             {
-                return BadRequest(new { message = "Email already registered" });
+                return BadRequest(new { message = "Email already registered. Please use a different email or login." });
             }
 
-            // Create new user - STORE PLAIN TEXT PASSWORD
+            // Email format validation (backend)
+            if (!IsValidEmail(request.Email))
+            {
+                return BadRequest(new { message = "Please enter a valid email address." });
+            }
+
+            // Create new user
             var user = new User
             {
                 FullName = request.FullName,
                 Email = request.Email,
-                PasswordHash = request.Password,  // Plain text - NO HASHING
+                PasswordHash = request.Password,
                 UserRole = "Student",
                 CreatedAt = DateTime.Now
             };
@@ -48,6 +55,28 @@ namespace OnlineExamPortal.API.Controllers
                 email = user.Email,
                 role = user.UserRole
             });
+        }
+
+        // Email validation helper method
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        [HttpGet("check-email/{email}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckEmailAvailability(string email)
+        {
+            var user = await _userRepository.GetByEmailAsync(email);
+            return Ok(new { available = user == null });
         }
 
         [HttpPost("login")]

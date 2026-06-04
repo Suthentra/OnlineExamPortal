@@ -1,0 +1,159 @@
+<div class="container-fluid mt-3">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>📊 Student Performance</h2>
+      <p class="text-muted">Exam: <strong>{{ examTitle }}</strong></p>
+    </div>
+    <div>
+      <button class="btn btn-secondary me-2" (click)="goBack()">← Back</button>
+      <button class="btn btn-danger" (click)="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center mt-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Performance Dashboard -->
+  <div *ngIf="!loading">
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-2">
+        <div class="card bg-primary text-white text-center">
+          <div class="card-body">
+            <h3>{{ totalStudents }}</h3>
+            <p>Total Students</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card bg-success text-white text-center">
+          <div class="card-body">
+            <h3>{{ averageScore }}%</h3>
+            <p>Average Score</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card bg-info text-white text-center">
+          <div class="card-body">
+            <h3>{{ highestScore }}%</h3>
+            <p>Highest Score</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-warning text-white text-center">
+          <div class="card-body">
+            <h3>{{ passRate }}%</h3>
+            <p>Pass Rate</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card d-flex flex-row justify-content-between p-3">
+          <div class="text-center">
+            <h4 class="text-success">✅ {{ passedCount }}</h4>
+            <small>Passed</small>
+          </div>
+          <div class="text-center">
+            <h4 class="text-danger">❌ {{ failedCount }}</h4>
+            <small>Failed</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass/Fail Progress Bar -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5>Pass/Fail Distribution</h5>
+        <div class="progress" style="height: 30px;">
+          <div class="progress-bar bg-success" [style.width.%]="passRate">
+            Passed: {{ passedCount }} ({{ passRate }}%)
+          </div>
+          <div class="progress-bar bg-danger" [style.width.%]="100 - passRate">
+            Failed: {{ failedCount }} ({{ 100 - passRate }}%)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search and Export -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <input type="text" class="form-control" placeholder="🔍 Search by name or email..." 
+               [(ngModel)]="searchTerm">
+      </div>
+      <div class="col-md-8 text-end">
+        <button class="btn btn-success" (click)="exportToCSV()">
+          📥 Export to CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0">Student List</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="cursor: pointer;" (click)="changeSort('studentName')">
+                  Student Name {{ getSortIcon('studentName') }}
+                </th>
+                <th>Email</th>
+                <th style="cursor: pointer;" (click)="changeSort('score')">
+                  Score {{ getSortIcon('score') }}
+                </th>
+                <th style="cursor: pointer;" (click)="changeSort('percentage')">
+                  Percentage {{ getSortIcon('percentage') }}
+                </th>
+                <th style="cursor: pointer;" (click)="changeSort('isPassed')">
+                  Status {{ getSortIcon('isPassed') }}
+                </th>
+                <th style="cursor: pointer;" (click)="changeSort('submittedAt')">
+                  Submitted Date {{ getSortIcon('submittedAt') }}
+                </th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let student of filteredStudents">
+                <td><strong>{{ student.studentName }}</strong></td>
+                <td>{{ student.studentEmail }}</td>
+                <td>{{ student.score }}/{{ student.totalMarks }}</td>
+                <td [class.text-success]="student.percentage >= 40" 
+                    [class.text-danger]="student.percentage < 40">
+                  {{ student.percentage }}%
+                </td>
+                <td>
+                  <span class="badge" [class.bg-success]="student.isPassed" [class.bg-danger]="!student.isPassed">
+                    {{ student.isPassed ? '✅ Passed' : '❌ Failed' }}
+                  </span>
+                </td>
+                <td>{{ student.submittedAt | date:'medium' }}</td>
+                <td>
+                  <button class="btn btn-sm btn-info" (click)="viewStudentDetails(student.studentId, student.attemptId)">
+                    View Details
+                  </button>
+                </td>
+            </tr>
+              <tr *ngIf="filteredStudents.length === 0">
+                <td colspan="7" class="text-center">No students found</td>
+              </tr>
+            </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -15,10 +15,10 @@
 .modal-container {
   background: white;
   border-radius: 20px;
-  width: 80%;
-  max-width: 800px;
-  max-height: 85vh;
-  overflow: hidden;
+  width: 500px;
+  max-width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
   animation: slideIn 0.3s ease;
 }
 
@@ -37,13 +37,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 15px 20px;
   background: linear-gradient(135deg, #4361ee, #3a0ca3);
   color: white;
-}
-
-.modal-header h3 {
-  margin: 0;
+  border-radius: 20px 20px 0 0;
 }
 
 .modal-close {
@@ -56,8 +53,6 @@
 
 .modal-body {
   padding: 20px;
-  max-height: 60vh;
-  overflow-y: auto;
 }
 
 .modal-footer {
@@ -76,34 +71,7 @@
   cursor: pointer;
 }
 
-/* Summary Cards */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.summary-card {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 15px;
-  text-align: center;
-}
-
-.summary-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #1e2a4a;
-}
-
-.summary-label {
-  font-size: 12px;
-  color: #6c757d;
-  margin-top: 5px;
-}
-
-/* Status Section */
+/* Status Badge */
 .status-section {
   text-align: center;
   padding: 15px;
@@ -121,66 +89,42 @@
   color: #dc2626;
 }
 
-/* Answers List */
+/* Answer List */
 .answers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
   margin-top: 15px;
 }
 
 .answer-item {
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 15px;
-  transition: all 0.3s ease;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border-left: 4px solid;
 }
 
 .answer-item.correct {
   background: #d1fae5;
-  border-color: #10b981;
+  border-left-color: #10b981;
 }
 
 .answer-item.wrong {
   background: #fee2e2;
-  border-color: #dc2626;
+  border-left-color: #dc2626;
 }
 
 .question-number {
   font-weight: bold;
-  font-size: 14px;
-  color: #6c757d;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .question-text {
-  font-weight: 500;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .answer-details {
-  display: flex;
-  gap: 20px;
   font-size: 13px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .answer-status {
   font-weight: bold;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .modal-container {
-    width: 95%;
-  }
-  
-  .answer-details {
-    flex-direction: column;
-    gap: 5px;
-  }
 }

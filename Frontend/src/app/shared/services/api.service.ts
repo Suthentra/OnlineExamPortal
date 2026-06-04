@@ -29,6 +29,10 @@ export class ApiService {
     return this.http.post(`${this.apiUrl}/Auth/login`, data);
   }
 
+  checkEmailAvailability(email: string) {
+    return this.http.get(`${this.apiUrl}/Auth/check-email/${email}`);
+  }
+
   // ============ EXAM APIs ============
   getAllExams() {
     const token = this.auth.getToken();
@@ -82,6 +86,51 @@ export class ApiService {
     });
   }
 
+  // ============ SECTION APIs ============
+  getSectionsByExam(examId: number) {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/Sections/exam/${examId}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  createSection(sectionData: any) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/Sections`, sectionData, {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      })
+    });
+  }
+
+  updateSection(id: number, sectionData: any) {
+    const token = this.auth.getToken();
+    return this.http.put(`${this.apiUrl}/Sections/${id}`, sectionData, {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      })
+    });
+  }
+
+  deleteSection(id: number) {
+    const token = this.auth.getToken();
+    return this.http.delete(`${this.apiUrl}/Sections/${id}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  createExamWithSections(examData: any) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/Exams/with-sections`, examData, {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      })
+    });
+  }
+
   // ============ QUESTION APIs ============
   getQuestionsByExam(examId: number) {
     const token = this.auth.getToken();
@@ -120,6 +169,38 @@ export class ApiService {
   deleteQuestion(id: number) {
     const token = this.auth.getToken();
     return this.http.delete(`${this.apiUrl}/Questions/${id}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  bulkCreateQuestions(examId: number, questions: any[]) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/Questions/bulk/${examId}`, questions, {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      })
+    });
+  }
+
+  // ============ QUESTION BANK APIs ============
+  getBankQuestions() {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/QuestionBank`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  addToBank(question: any) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/QuestionBank`, question, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  addFromBankToExam(examId: number, questionIds: number[]) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/QuestionBank/add-to-exam/${examId}`, questionIds, {
       headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
     });
   }
@@ -189,6 +270,13 @@ export class ApiService {
     });
   }
 
+  getStudentRank(studentId: number) {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/Results/rank/${studentId}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
   // ============ USER APIs ============
   getAllUsers() {
     const token = this.auth.getToken();
@@ -231,10 +319,60 @@ export class ApiService {
     });
   }
 
-  getStudentRank(studentId: number) {
-  const token = this.auth.getToken();
-  return this.http.get(`${this.apiUrl}/Results/rank/${studentId}`, {
-    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
-  });
-}
+  changePassword(data: any) {
+    const token = this.auth.getToken();
+    return this.http.post(`${this.apiUrl}/Users/change-password`, data, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  // ============ VIOLATION APIs ============
+  logViolation(violationData: any) {
+    const token = this.auth.getToken();
+    console.log('Sending violation to API:', violationData);
+    return this.http.post(`${this.apiUrl}/ExamAttempt/log-violation`, violationData, {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      })
+    });
+  }
+
+  getAllViolations() {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/ExamAttempt/all-violations`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  getViolationsByStudent(studentId: number) {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/ExamAttempt/violations/student/${studentId}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  getViolationsByExam(examId: number) {
+    const token = this.auth.getToken();
+    return this.http.get(`${this.apiUrl}/ExamAttempt/violations/exam/${examId}`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    });
+  }
+
+  // Local storage backup for violations (if API fails)
+  saveViolationToLocal(violationData: any) {
+    let violations = JSON.parse(localStorage.getItem('violations') || '[]');
+    violations.push(violationData);
+    localStorage.setItem('violations', JSON.stringify(violations));
+    console.log('Violation saved to localStorage. Total:', violations.length);
+    return violations;
+  }
+
+  getLocalViolations() {
+    return JSON.parse(localStorage.getItem('violations') || '[]');
+  }
+
+  clearLocalViolations() {
+    localStorage.removeItem('violations');
+  }
 }

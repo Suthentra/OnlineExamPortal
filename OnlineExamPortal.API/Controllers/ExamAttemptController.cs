@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using OnlineExamPortal.API.Models.DTOs.ExamAttempt;
 using OnlineExamPortal.API.Repositories.Interface;
+using OnlineExamPortal.API.Services;
 using System.Security.Claims;
 
 namespace OnlineExamPortal.API.Controllers
@@ -14,18 +15,25 @@ namespace OnlineExamPortal.API.Controllers
         private readonly IExamAttemptRepository _examAttemptRepository;
         private readonly IExamRepository _examRepository;
         private readonly IQuestionRepository _questionRepository;
+        private readonly IUserRepository _userRepository;
         private readonly string _connectionString;
+        private readonly IEmailService _emailService;
 
+        // SINGLE CONSTRUCTOR - with all dependencies
         public ExamAttemptController(
             IExamAttemptRepository examAttemptRepository,
             IExamRepository examRepository,
             IQuestionRepository questionRepository,
-            IConfiguration configuration)
+            IUserRepository userRepository,
+            IConfiguration configuration,
+            IEmailService emailService)
         {
             _examAttemptRepository = examAttemptRepository;
             _examRepository = examRepository;
             _questionRepository = questionRepository;
+            _userRepository = userRepository;
             _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
+            _emailService = emailService;
             Console.WriteLine($"Connection String loaded: {_connectionString != null}");
         }
 
@@ -160,7 +168,8 @@ namespace OnlineExamPortal.API.Controllers
 
                     string sql = @"
                         DECLARE @TotalScore INT = ISNULL((SELECT SUM(q.Marks) 
-                            FROM Answers a JOIN Questions q ON a.QuestionId = q.Id 
+                            FROM Answers a 
+                            JOIN Questions q ON a.QuestionId = q.Id 
                             WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1), 0);
                         
                         DECLARE @TotalMarks INT = ISNULL((SELECT SUM(Marks) 
@@ -188,23 +197,63 @@ namespace OnlineExamPortal.API.Controllers
                     cmd.Parameters.AddWithValue("@AttemptId", attemptId);
 
                     using var reader = await cmd.ExecuteReaderAsync();
-                    int score = 0;
+                    int totalScore = 0;
                     int totalMarks = 0;
                     decimal percentage = 0;
                     bool isPassed = false;
 
                     if (await reader.ReadAsync())
                     {
-                        score = reader["Score"] != DBNull.Value ? Convert.ToInt32(reader["Score"]) : 0;
+                        totalScore = reader["Score"] != DBNull.Value ? Convert.ToInt32(reader["Score"]) : 0;
                         totalMarks = reader["TotalMarks"] != DBNull.Value ? Convert.ToInt32(reader["TotalMarks"]) : 0;
                         percentage = reader["Percentage"] != DBNull.Value ? Convert.ToDecimal(reader["Percentage"]) : 0;
                         isPassed = reader["IsPassed"] != DBNull.Value ? Convert.ToBoolean(reader["IsPassed"]) : false;
                     }
 
+                    // Send email to student
+                    try
+                    {
+                        var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
+                        if (attempt != null)
+                        {
+                            var student = await _userRepository.GetByIdAsync(attempt.UserId);
+                            var exam = await _examRepository.GetByIdAsync(attempt.ExamId);
+
+                            if (student != null && exam != null && !string.IsNullOrEmpty(student.Email))
+                            {
+                                // Send email in background
+                                _ = Task.Run(async () =>
+                                {
+                                    try
+                                    {
+                                        await _emailService.SendResultEmail(
+                                            student.Email,
+                                            student.FullName,
+                                            exam.Title,
+                                            totalScore,
+                                            totalMarks,
+                                            percentage,
+                                            isPassed
+                                        );
+                                        Console.WriteLine($"Email sent to {student.Email}");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Email sending failed: {ex.Message}");
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Email preparation failed: {ex.Message}");
+                    }
+
                     return Ok(new
                     {
                         message = "Exam submitted successfully",
-                        score = score,
+                        score = totalScore,
                         totalMarks = totalMarks,
                         percentage = percentage,
                         isPassed = isPassed
@@ -213,6 +262,7 @@ namespace OnlineExamPortal.API.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"SubmitExam error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }

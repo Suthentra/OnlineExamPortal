@@ -6,9 +6,7 @@
       <p class="text-muted">Exam: <strong>{{ examTitle }}</strong></p>
     </div>
     <div>
-      <button class="btn-secondary" (click)="goBack()">
-        <i class="fas fa-arrow-left"></i> Back
-      </button>
+      
       <button class="btn-primary" (click)="exportToCSV()">
         <i class="fas fa-download"></i> Export CSV
       </button>
@@ -90,8 +88,7 @@
           <th (click)="sortBy('isPassed')">Status <i class="fas fa-sort"></i></th>
           <th (click)="sortBy('startedAt')">Started At <i class="fas fa-sort"></i></th>
           <th (click)="sortBy('submittedAt')">Submitted At <i class="fas fa-sort"></i></th>
-          <th>Duration</th>
-          <th>Actions</th>
+          
         </tr>
       </thead>
       <tbody>
@@ -110,12 +107,7 @@
           </td>
           <td>{{ result.startedAt | date:'medium' }}</td>
           <td>{{ result.submittedAt | date:'medium' }}</td>
-          <td>{{ getDuration(result.startedAt, result.submittedAt) }}</td>
-          <td>
-            <button class="btn-view" (click)="viewStudentDetails(result.attemptId)">
-              <i class="fas fa-eye"></i> View
-            </button>
-          </td>
+          
         </tr>
         <tr *ngIf="filteredResults.length === 0">
           <td colspan="10" class="no-data">No results found</td>

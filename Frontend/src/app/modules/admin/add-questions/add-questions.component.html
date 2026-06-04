@@ -1,114 +1,278 @@
 <div class="container mt-4">
-  <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h2>Manage Questions</h2>
       <p class="text-muted">For Exam: <strong>{{ examTitle }}</strong></p>
     </div>
-    <button class="btn btn-secondary" (click)="goBack()">← Back</button>
+    <button class="btn btn-secondary" (click)="goBack()">← Back to Dashboard</button>
   </div>
 
-  <div class="row">
-    <!-- Add/Edit Question Form -->
-    <div class="col-md-6">
-      <div class="card" id="questionForm">
-        <div class="card-header" [class.bg-primary]="!isEditing" [class.bg-warning]="isEditing">
-          <h5 class="text-white">{{ isEditing ? 'Edit Question' : 'Add New Question' }}</h5>
+  <!-- Three Tabs for Question Entry -->
+  <div class="tab-navigation">
+    <button class="tab-btn" [class.active]="activeTab === 'manual'" (click)="activeTab = 'manual'">
+      ✏️ Manual Entry
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'bank'" (click)="activeTab = 'bank'">
+      📚 Question Bank
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'bulk'" (click)="activeTab = 'bulk'">
+      📤 Bulk Upload
+    </button>
+  </div>
+
+  <!-- ========== TAB 1: MANUAL ENTRY ========== -->
+  <div *ngIf="activeTab === 'manual'" class="card mt-3">
+    <div class="card-header bg-primary text-white">
+      <h5>Add Question Manually</h5>
+    </div>
+    <div class="card-body">
+      <div *ngIf="message" class="alert" [class.alert-success]="!isError" [class.alert-danger]="isError">
+        {{ message }}
+      </div>
+
+      <form (ngSubmit)="addManualQuestion()">
+        <div class="mb-3">
+          <label class="form-label">Question Text *</label>
+          <textarea class="form-control" [(ngModel)]="newQuestion.questionText" name="questionText" rows="2" required></textarea>
         </div>
-        <div class="card-body">
-          <div *ngIf="message" class="alert" [class.alert-success]="!isError" [class.alert-danger]="isError">
-            {{ message }}
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option A *</label>
+            <input type="text" class="form-control" [(ngModel)]="newQuestion.optionA" name="optionA" required>
           </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option B *</label>
+            <input type="text" class="form-control" [(ngModel)]="newQuestion.optionB" name="optionB" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option C</label>
+            <input type="text" class="form-control" [(ngModel)]="newQuestion.optionC" name="optionC">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option D</label>
+            <input type="text" class="form-control" [(ngModel)]="newQuestion.optionD" name="optionD">
+          </div>
+        </div>
 
-          <form (ngSubmit)="isEditing ? onUpdate() : onSubmit()">
-            <div class="mb-3">
-              <label class="form-label">Question Text *</label>
-              <textarea class="form-control" [(ngModel)]="questionText" name="questionText" rows="2" required></textarea>
-            </div>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Correct Answer *</label>
+            <select class="form-control" [(ngModel)]="newQuestion.correctAnswer" name="correctAnswer" required>
+              <option value="">Select</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Marks</label>
+            <input type="number" class="form-control" [(ngModel)]="newQuestion.marks" name="marks">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-check-label mt-4">
+              <input type="checkbox" [(ngModel)]="saveToBank" name="saveToBank">
+              Save to Question Bank
+            </label>
+          </div>
+        </div>
 
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Option A *</label>
-                <input type="text" class="form-control" [(ngModel)]="optionA" name="optionA" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Option B *</label>
-                <input type="text" class="form-control" [(ngModel)]="optionB" name="optionB" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Option C</label>
-                <input type="text" class="form-control" [(ngModel)]="optionC" name="optionC">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Option D</label>
-                <input type="text" class="form-control" [(ngModel)]="optionD" name="optionD">
-              </div>
-            </div>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          {{ loading ? 'Adding...' : 'Add Question' }}
+        </button>
+      </form>
+    </div>
+  </div>
 
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Correct Answer *</label>
-                <select class="form-control" [(ngModel)]="correctAnswer" name="correctAnswer" required>
-                  <option value="">Select</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                </select>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Marks</label>
-                <input type="number" class="form-control" [(ngModel)]="marks" name="marks">
-              </div>
-            </div>
-
-            <div class="d-flex gap-2">
-              <button type="submit" class="btn" [class.btn-primary]="!isEditing" [class.btn-warning]="isEditing" [disabled]="loading">
-                {{ loading ? 'Processing...' : (isEditing ? 'Update Question' : 'Add Question') }}
-              </button>
-              <button type="button" class="btn btn-secondary" (click)="cancelEdit()" *ngIf="isEditing">
-                Cancel
-              </button>
-            </div>
-          </form>
+  <!-- ========== TAB 2: QUESTION BANK ========== -->
+  <div *ngIf="activeTab === 'bank'" class="card mt-3">
+    <div class="card-header bg-info text-white">
+      <h5>Select from Question Bank</h5>
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <select class="form-control" [(ngModel)]="filterCategory">
+            <option value="">All Categories</option>
+            <option value="Aptitude">Aptitude</option>
+            <option value="Technical">Technical</option>
+            <option value="Programming">Programming</option>
+            <option value="Logical">Logical Reasoning</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-control" [(ngModel)]="filterDifficulty">
+            <option value="">All Difficulties</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <input type="text" class="form-control" placeholder="Search questions..." [(ngModel)]="searchTerm">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success w-100" (click)="addSelectedToExam()" [disabled]="selectedCount === 0">
+            Add Selected ({{ selectedCount }})
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Questions List -->
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header bg-info text-white">
-          <h5>Questions Added ({{ questions.length }})</h5>
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th><input type="checkbox" (change)="selectAll()" [checked]="isAllSelected"></th>
+              <th>Category</th>
+              <th>Question</th>
+              <th>Difficulty</th>
+              <th>Marks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let q of filteredBankQuestions">
+              <td><input type="checkbox" [(ngModel)]="q.selected"></td>
+              <td>{{ q.category }}</td>
+              <td>{{ q.questionText | slice:0:80 }}...</td>
+              <td><span class="badge" [class.bg-success]="q.difficulty === 'Easy'" [class.bg-warning]="q.difficulty === 'Medium'" [class.bg-danger]="q.difficulty === 'Hard'">{{ q.difficulty }}</span></td>
+              <td>{{ q.marks }}</td>
+             </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 3: BULK UPLOAD ========== -->
+  <div *ngIf="activeTab === 'bulk'" class="card mt-3">
+    <div class="card-header bg-success text-white">
+      <h5>Bulk Question Upload</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <button class="btn btn-info w-100 mb-2" (click)="downloadCSVTemplate()">
+            📥 Download CSV Template
+          </button>
         </div>
-        <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-          <div *ngIf="questions.length === 0" class="alert alert-info">
-            No questions added yet. Add your first question.
-          </div>
-          
-          <div *ngFor="let q of questions; let i = index" class="card mb-2">
-            <div class="card-body">
-              <div class="d-flex justify-content-between">
-                <strong>Q{{ i + 1 }}. {{ q.questionText }}</strong>
-                <div>
-                  <button class="btn btn-sm btn-warning me-1" (click)="editQuestion(q)">✏️ Edit</button>
-                  <button class="btn btn-sm btn-danger" (click)="deleteQuestion(q.id)">🗑️ Delete</button>
-                </div>
-              </div>
+        <div class="col-md-6">
+          <label class="btn btn-success w-100 mb-2" (click)="triggerFileUpload()">
+            📤 Upload CSV File
+          </label>
+          <input type="file" #fileInput (change)="uploadCSV($event)" accept=".csv" style="display: none;">
+        </div>
+      </div>
+      <div class="alert alert-info mt-3">
+        <strong>📝 Instructions:</strong>
+        <ul class="mb-0">
+          <li>Download the CSV template</li>
+          <li>Fill in your questions in ONLYOFFICE/Excel</li>
+          <li>Save as CSV and upload</li>
+          <li>All questions will be added automatically</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Existing Questions List with Edit & Delete Icons -->
+  <div class="card mt-4">
+    <div class="card-header bg-dark text-white">
+      <h5>Questions in this Exam ({{ questions.length }})</h5>
+    </div>
+    <div class="card-body">
+      <div *ngFor="let q of questions; let i = index" class="card mb-2">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <strong>Q{{ i + 1 }}. {{ q.questionText }}</strong>
               <div class="row mt-2 small">
-                <div class="col-6">A) {{ q.optionA }}</div>
-                <div class="col-6">B) {{ q.optionB }}</div>
-                <div class="col-6">C) {{ q.optionC }}</div>
-                <div class="col-6">D) {{ q.optionD }}</div>
+                <div class="col-md-3">A) {{ q.optionA }}</div>
+                <div class="col-md-3">B) {{ q.optionB }}</div>
+                <div class="col-md-3">C) {{ q.optionC }}</div>
+                <div class="col-md-3">D) {{ q.optionD }}</div>
               </div>
               <div class="mt-1">
                 <span class="badge bg-success">Answer: {{ q.correctAnswer }}</span>
                 <span class="badge bg-info ms-1">{{ q.marks }} marks</span>
               </div>
             </div>
+            <div class="ms-3">
+              <button class="btn btn-sm btn-warning me-2" (click)="openEditModal(q)" title="Edit Question">
+                <i class="fas fa-pencil-alt"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" (click)="deleteQuestion(q.id)" title="Delete Question">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Question Modal -->
+<div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header bg-warning">
+      <h3>✏️ Edit Question</h3>
+      <button class="modal-close" (click)="closeEditModal()">✖</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="editMessage" class="alert" [class.alert-success]="!editIsError" [class.alert-danger]="editIsError">
+        {{ editMessage }}
+      </div>
+
+      <form (ngSubmit)="updateQuestion()">
+        <div class="mb-3">
+          <label class="form-label">Question Text *</label>
+          <textarea class="form-control" [(ngModel)]="editingQuestion.questionText" name="editQuestionText" rows="2" required></textarea>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option A *</label>
+            <input type="text" class="form-control" [(ngModel)]="editingQuestion.optionA" name="editOptionA" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option B *</label>
+            <input type="text" class="form-control" [(ngModel)]="editingQuestion.optionB" name="editOptionB" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option C</label>
+            <input type="text" class="form-control" [(ngModel)]="editingQuestion.optionC" name="editOptionC">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Option D</label>
+            <input type="text" class="form-control" [(ngModel)]="editingQuestion.optionD" name="editOptionD">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Correct Answer *</label>
+            <select class="form-control" [(ngModel)]="editingQuestion.correctAnswer" name="editCorrectAnswer" required>
+              <option value="">Select</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Marks</label>
+            <input type="number" class="form-control" [(ngModel)]="editingQuestion.marks" name="editMarks">
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-warning" [disabled]="editLoading">
+            {{ editLoading ? 'Updating...' : 'Update Question' }}
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { DarkModeService } from '../../../shared/services/dark-mode.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -28,16 +29,24 @@ export class DashboardComponent implements OnInit {
 
   // For UI
   activeTab: string = 'exams';
+  isDarkMode: boolean = false;
 
   constructor(
     private auth: AuthService,
     private api: ApiService,
-    private router: Router
+    private router: Router,
+    private darkModeService: DarkModeService
   ) {}
 
   ngOnInit() {
     this.user = this.auth.getUser();
+    this.isDarkMode = this.darkModeService.isDarkMode;
     this.loadDashboardData();
+  }
+
+  toggleDarkMode() {
+    this.darkModeService.toggleDarkMode();
+    this.isDarkMode = this.darkModeService.isDarkMode;
   }
 
   loadDashboardData() {
@@ -53,14 +62,12 @@ export class DashboardComponent implements OnInit {
         
         this.api.getStudentResults(this.user.userId).subscribe({
           next: (results: any) => {
-            // Explicitly convert to number array
             const examIds: number[] = results.map((r: any) => r.examId);
             const completedExamIdsSet = new Set<number>(examIds);
             
             this.availableExamsList = data.filter((exam: any) => !completedExamIdsSet.has(exam.id));
             this.availableExams = this.availableExamsList.length;
             
-            // Clear and add each ID
             this.attemptedExams.clear();
             examIds.forEach(id => this.attemptedExams.add(id));
             
@@ -156,8 +163,6 @@ export class DashboardComponent implements OnInit {
   }
 
   logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  window.location.href = '/login';
-}
+    this.auth.logout();
+  }
 }

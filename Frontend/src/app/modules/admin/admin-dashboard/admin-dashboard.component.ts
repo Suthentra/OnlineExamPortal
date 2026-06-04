@@ -2,6 +2,37 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { DarkModeService } from '../../../shared/services/dark-mode.service';
+
+interface Violation {
+  attemptId: number;
+  studentId: number;
+  studentName: string;
+  studentEmail: string;
+  examId: number;
+  examTitle: string;
+  violationType: string;
+  violationCount: number;
+  timestamp: string;
+  remainingWarnings: number;
+}
+
+interface ExamViolation {
+  examId: number;
+  examTitle: string;
+  violations: Violation[];
+  lastViolation: string | null;
+}
+
+interface StudentViolation {
+  studentId: number;
+  studentName: string;
+  studentEmail: string;
+  totalViolations: number;
+  examsAffected: number;
+  exams: ExamViolation[];
+  lastViolation: string | null;
+}
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -16,31 +47,45 @@ export class AdminDashboardComponent implements OnInit {
   attempts: any[] = [];
   loading = true;
   activeTab: string = 'dashboard';
+  isDarkMode: boolean = false;
 
-  // Modal properties
+  violations: Violation[] = [];
+  filteredViolations: Violation[] = [];
+  loadingViolations: boolean = false;
+  searchTerm: string = '';
+
   showModal: boolean = false;
   modalTitle: string = '';
   modalData: any = [];
   modalType: string = '';
 
-  // Statistics
   totalExams: number = 0;
   totalStudents: number = 0;
   totalAttempts: number = 0;
-  passRate: number = 0;
-  passedCount: number = 0;
-  failedCount: number = 0;
   averageScore: number = 0;
+  passRate: number = 0;
 
   constructor(
     private auth: AuthService,
     private api: ApiService,
-    private router: Router
+    private router: Router,
+    private darkModeService: DarkModeService
   ) {}
 
   ngOnInit() {
     this.user = this.auth.getUser();
+    this.isDarkMode = this.darkModeService.isDarkMode;
     this.loadDashboardData();
+    this.loadViolations();
+  }
+
+  toggleDarkMode() {
+    this.darkModeService.toggleDarkMode();
+    this.isDarkMode = this.darkModeService.isDarkMode;
+  }
+
+  logout() { 
+    this.auth.logout(); 
   }
 
   loadDashboardData() {
@@ -51,194 +96,294 @@ export class AdminDashboardComponent implements OnInit {
 
   loadExams() {
     this.api.getAllExams().subscribe({
-      next: (data: any) => {
-        this.exams = data;
-        this.totalExams = data.length;
-        this.loading = false;
+      next: (data: any) => { 
+        this.exams = data; 
+        this.totalExams = data.length; 
+        this.loading = false; 
       },
-      error: () => {
-        this.loading = false;
+      error: () => { 
+        this.loading = false; 
       }
     });
   }
 
   loadStudents() {
     this.api.getAllUsers().subscribe({
-      next: (data: any) => {
-        // Filter only students and sort by registration date (newest first)
-        this.students = data
-          .filter((u: any) => u.userRole === 'Student')
-          .sort((a: any, b: any) => {
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          });
-        this.totalStudents = this.students.length;
+      next: (data: any) => { 
+        this.students = data.filter((u: any) => u.userRole === 'Student'); 
+        this.totalStudents = this.students.length; 
       },
-      error: (err: any) => {
-        console.error('Error loading students:', err);
-      }
+      error: (err: any) => console.error('Error loading students:', err)
     });
   }
 
   loadAttempts() {
-  console.log('Loading attempts...');
-  this.api.getAllAttempts().subscribe({
-    next: (data: any) => {
-      console.log('Raw attempts data from API:', data);
-      this.attempts = data.filter((a: any) => a.status === 'Completed');
-      console.log('Filtered attempts (Completed only):', this.attempts);
-      this.totalAttempts = this.attempts.length;
-      this.passedCount = this.attempts.filter((a: any) => a.isPassed).length;
-      this.failedCount = this.totalAttempts - this.passedCount;
-      this.passRate = this.totalAttempts > 0 
-        ? Math.round((this.passedCount / this.totalAttempts) * 100) 
-        : 0;
-      this.calculateAverageScore();
-    },
-    error: (err: any) => {
-      console.error('Error loading attempts:', err);
-    }
-  });
-}
-
-  calculateAverageScore() {
-    if (this.attempts.length === 0) {
-      this.averageScore = 0;
-      return;
-    }
-    const total = this.attempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0);
-    this.averageScore = Math.round(total / this.attempts.length);
+    this.api.getAllAttempts().subscribe({
+      next: (data: any) => {
+        this.attempts = data.filter((a: any) => a.status === 'Completed');
+        this.totalAttempts = this.attempts.length;
+        const totalScore = this.attempts.reduce((sum: number, a: any) => sum + (a.percentage || 0), 0);
+        this.averageScore = this.attempts.length ? Math.round(totalScore / this.attempts.length) : 0;
+      },
+      error: (err: any) => console.error('Error loading attempts:', err)
+    });
   }
 
-  // ========== CARD CLICK HANDLERS ==========
+  loadViolations() {
+    this.loadingViolations = true;
+    
+    this.api.getAllViolations().subscribe({
+      next: (data: any) => {
+        console.log('Violations from API:', data);
+        this.violations = data;
+        this.filteredViolations = data;
+        this.loadingViolations = false;
+      },
+      error: (err: any) => {
+        console.error('API error, loading from localStorage:', err);
+        const localViolations = this.api.getLocalViolations();
+        console.log('Violations from localStorage:', localViolations);
+        this.violations = localViolations;
+        this.filteredViolations = localViolations;
+        this.loadingViolations = false;
+      }
+    });
+  }
+
+  filterViolations() {
+    if (!this.searchTerm) {
+      this.filteredViolations = this.violations;
+    } else {
+      const term = this.searchTerm.toLowerCase();
+      this.filteredViolations = this.violations.filter(v => 
+        v.studentName?.toLowerCase().includes(term) || 
+        v.studentEmail?.toLowerCase().includes(term)
+      );
+    }
+  }
+
+  clearSearch() {
+    this.searchTerm = '';
+    this.filteredViolations = this.violations;
+  }
+
+  // ========== GROUPED VIOLATIONS METHODS ==========
+
+  getGroupedViolations(): StudentViolation[] {
+    const studentMap = new Map<number, StudentViolation>();
+    
+    this.filteredViolations.forEach(violation => {
+      if (!studentMap.has(violation.studentId)) {
+        studentMap.set(violation.studentId, {
+          studentId: violation.studentId,
+          studentName: violation.studentName,
+          studentEmail: violation.studentEmail,
+          totalViolations: 0,
+          examsAffected: 0,
+          exams: [],
+          lastViolation: null
+        });
+      }
+      
+      const student = studentMap.get(violation.studentId)!;
+      student.totalViolations++;
+      
+      // Check if exam already exists
+      let exam = student.exams.find(e => e.examId === violation.examId);
+      if (!exam) {
+        exam = {
+          examId: violation.examId,
+          examTitle: violation.examTitle,
+          violations: [],
+          lastViolation: null
+        };
+        student.exams.push(exam);
+      }
+      
+      exam.violations.push(violation);
+      
+      // Update last violation time
+      const violationTime = new Date(violation.timestamp).getTime();
+      if (!exam.lastViolation || violationTime > new Date(exam.lastViolation).getTime()) {
+        exam.lastViolation = violation.timestamp;
+      }
+      if (!student.lastViolation || violationTime > new Date(student.lastViolation).getTime()) {
+        student.lastViolation = violation.timestamp;
+      }
+    });
+    
+    // Convert to array and calculate examsAffected
+    const result: StudentViolation[] = Array.from(studentMap.values()).map(student => ({
+      ...student,
+      examsAffected: student.exams.length,
+      exams: student.exams.sort((a, b) => b.violations.length - a.violations.length)
+    }));
+    
+    return result.sort((a, b) => b.totalViolations - a.totalViolations);
+  }
+
+  getSeverityLevel(totalViolations: number): string {
+    if (totalViolations >= 3) return 'Critical';
+    if (totalViolations >= 2) return 'Warning';
+    return 'Monitor';
+  }
+
+  getViolationBreakdown(student: StudentViolation): string {
+    const types = new Set<string>();
+    student.exams.forEach(exam => {
+      exam.violations.forEach(v => types.add(v.violationType));
+    });
+    return Array.from(types).map(t => this.getViolationTypeName(t)).join(', ');
+  }
+
+  getUniqueViolationTypes(violations: Violation[]): string[] {
+    return [...new Set(violations.map(v => v.violationType))];
+  }
+
+  getViolationCountForType(violations: Violation[], type: string): number {
+    return violations.filter(v => v.violationType === type).length;
+  }
+
+  getExamViolationCount(violations: Violation[]): number {
+    return violations.length;
+  }
+
+  viewStudentViolations(student: StudentViolation) {
+    this.modalTitle = `Violations - ${student.studentName}`;
+    this.modalType = 'student-violations';
+    this.modalData = {
+      student: student,
+      violations: this.filteredViolations.filter(v => v.studentId === student.studentId)
+    };
+    this.showModal = true;
+  }
+
+  notifyStudent(student: StudentViolation) {
+    if (confirm(`Send warning notification to ${student.studentName}?\n\nTotal Violations: ${student.totalViolations}\nExams Affected: ${student.examsAffected}`)) {
+      alert(`📧 Warning notification sent to ${student.studentName}`);
+    }
+  }
+
+  // ========== STATS METHODS ==========
+
+  getTotalViolations(): number { 
+    return this.violations.length; 
+  }
+
+  getStudentsWithViolations(): number { 
+    return new Set(this.violations.map(v => v.studentId)).size; 
+  }
+
+  getExamsWithViolations(): number { 
+    return new Set(this.violations.map(v => v.examId)).size; 
+  }
+
+  getViolationIcon(type: string): string {
+    switch(type) {
+      case 'FULLSCREEN_EXIT': return 'fas fa-expand';
+      case 'TAB_SWITCH': return 'fas fa-window-restore';
+      case 'WINDOW_BLUR': return 'fas fa-eye-slash';
+      default: return 'fas fa-exclamation-triangle';
+    }
+  }
+
+  getViolationTypeName(type: string): string {
+    switch(type) {
+      case 'FULLSCREEN_EXIT': return 'Fullscreen Exit';
+      case 'TAB_SWITCH': return 'Tab Switch';
+      case 'WINDOW_BLUR': return 'Window Blur';
+      default: return type;
+    }
+  }
+
+  // ========== EXAM CRUD METHODS ==========
+
+  createExam() { this.router.navigate(['/admin/create-exam']); }
+  editExam(id: number) { this.router.navigate(['/admin/edit-exam', id]); }
+  addQuestions(id: number) { this.router.navigate(['/admin/add-questions', id]); }
+  viewResults(id: number) { this.router.navigate(['/admin/exam-results', id]); }
+  
+  publishExam(id: number) {
+    this.api.publishExam(id).subscribe(() => this.loadExams());
+  }
+
+  deleteExam(id: number, title: string) {
+    if (confirm(`Delete "${title}"?`)) {
+      this.api.deleteExam(id).subscribe(() => this.loadExams());
+    }
+  }
+
+  // ========== MODAL METHODS ==========
 
   showExamList() {
-    this.modalTitle = '📋 All Exams';
+    this.modalTitle = 'All Exams';
     this.modalType = 'exams';
-    this.modalData = this.exams.map(e => ({
-      id: e.id,
-      title: e.title,
-      status: e.isPublished ? 'Published ✅' : 'Draft 📝',
-      questions: e.totalQuestions || 0
+    this.modalData = this.exams.map(e => ({ 
+      id: e.id, 
+      title: e.title, 
+      status: e.isPublished ? 'Published' : 'Draft', 
+      questions: e.totalQuestions || 0 
     }));
     this.showModal = true;
   }
 
   showStudentList() {
-    this.modalTitle = '👨‍🎓 Student Performance';
+    this.modalTitle = 'Student Performance';
     this.modalType = 'students';
-    
-    // Students are already sorted by createdAt (newest first) from loadStudents
-    this.modalData = this.students.map(s => {
-      const studentAttempts = this.attempts.filter(a => a.userId === s.id);
-      const avgScore = studentAttempts.length > 0
-        ? Math.round(studentAttempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / studentAttempts.length)
-        : 0;
-      return {
-        id: s.id,
-        name: s.fullName,
-        email: s.email,
-        registeredOn: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : 'N/A',
-        attemptsCount: studentAttempts.length,
-        avgScore: avgScore,
-        lastAttempt: studentAttempts.length > 0 ? studentAttempts[studentAttempts.length - 1].submittedAt : null
-      };
-    });
+    this.modalData = this.students.map(s => ({ 
+      id: s.id, 
+      name: s.fullName, 
+      email: s.email, 
+      registeredOn: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : 'N/A', 
+      attemptsCount: this.attempts.filter(a => a.userId === s.id).length, 
+      avgScore: 0 
+    }));
     this.showModal = true;
   }
 
   showAttemptsList() {
-    this.modalTitle = '📊 All Exam Attempts';
+    this.modalTitle = 'Exam Attempts';
     this.modalType = 'attempts';
-    this.modalData = this.attempts.map(a => ({
-      studentName: this.getStudentName(a.userId),
-      examTitle: this.getExamTitle(a.examId),
-      score: a.score,
-      totalMarks: a.totalMarks || 100,
-      percentage: a.percentage,
-      status: a.isPassed ? '✅ Passed' : '❌ Failed',
-      submittedAt: new Date(a.submittedAt).toLocaleString()
+    this.modalData = this.attempts.map(a => ({ 
+      studentName: this.getStudentName(a.userId), 
+      examTitle: this.getExamTitle(a.examId), 
+      score: a.score, 
+      totalMarks: a.totalMarks || 100, 
+      percentage: a.percentage, 
+      status: a.isPassed ? 'Passed' : 'Failed', 
+      submittedAt: new Date(a.submittedAt).toLocaleString() 
     }));
     this.showModal = true;
   }
 
   showAverageScore() {
-    this.modalTitle = '📊 Average Score Analysis';
+    this.modalTitle = 'Average Score Analysis';
     this.modalType = 'averagescore';
-    this.modalData = {
-      averageScore: this.averageScore,
-      totalAttempts: this.totalAttempts,
-      totalStudents: this.totalStudents,
-      passRate: this.passRate
+    this.modalData = { 
+      averageScore: this.averageScore, 
+      totalAttempts: this.totalAttempts, 
+      totalStudents: this.totalStudents, 
+      passRate: this.passRate 
     };
     this.showModal = true;
   }
 
-  // ========== EXAM CRUD METHODS ==========
-
-  createExam() {
-    this.router.navigate(['/admin/create-exam']);
+  getStudentName(id: number): string { 
+    const s = this.students.find(s => s.id === id); 
+    return s ? s.fullName : 'Unknown'; 
   }
 
-  editExam(examId: number) {
-    this.router.navigate(['/admin/edit-exam', examId]);
+  getExamTitle(id: number): string { 
+    const e = this.exams.find(e => e.id === id); 
+    return e ? e.title : 'Unknown'; 
   }
 
-  addQuestions(examId: number) {
-    this.router.navigate(['/admin/add-questions', examId]);
+  viewStudentDetails(id: number) { 
+    this.showModal = false; 
+    this.router.navigate(['/admin/student-performance', id]); 
   }
 
-  publishExam(examId: number) {
-    this.api.publishExam(examId).subscribe({
-      next: () => {
-        this.loadExams();
-      },
-      error: (err: any) => {
-        console.error('Failed to publish:', err);
-      }
-    });
+  closeModal() { 
+    this.showModal = false; 
   }
-
-  deleteExam(examId: number) {
-    if (confirm('Are you sure you want to delete this exam? All questions will also be deleted.')) {
-      this.api.deleteExam(examId).subscribe({
-        next: () => {
-          this.loadExams();
-        },
-        error: (err: any) => {
-          console.error('Failed to delete:', err);
-        }
-      });
-    }
-  }
-
-  viewResults(examId: number) {
-    this.router.navigate(['/admin/exam-results', examId]);
-  }
-
-  // ========== HELPER METHODS ==========
-
-  getStudentName(userId: number): string {
-    const student = this.students.find(s => s.id === userId);
-    return student ? student.fullName : 'Unknown';
-  }
-
-  getExamTitle(examId: number): string {
-    const exam = this.exams.find(e => e.id === examId);
-    return exam ? exam.title : 'Unknown';
-  }
-
-  viewStudentDetails(studentId: number) {
-    this.showModal = false;
-    this.router.navigate(['/admin/student-performance', studentId]);
-  }
-
-  closeModal() {
-    this.showModal = false;
-  }
-
-  logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  window.location.href = '/login';
-}
 }

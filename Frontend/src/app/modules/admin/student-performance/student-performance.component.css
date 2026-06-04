@@ -1,0 +1,87 @@
+.progress {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.card {
+  border-radius: 15px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table th:hover {
+  background-color: #e9ecef;
+}
+
+.badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+}
+
+.text-success {
+  color: #28a745 !important;
+  font-weight: bold;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+  font-weight: bold;
+}
+
+.btn-sm {
+  border-radius: 8px;
+  padding: 5px 12px;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  border: none;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #17a2b8, #138496);
+  border: none;
+}
+
+.bg-primary {
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+}
+
+.bg-success {
+  background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.bg-info {
+  background: linear-gradient(135deg, #17a2b8, #138496);
+}
+
+.bg-warning {
+  background: linear-gradient(135deg, #f8961e, #f3722c);
+}
+
+@media (max-width: 768px) {
+  .row {
+    flex-direction: column;
+  }
+  
+  .col-md-2, .col-md-3 {
+    margin-bottom: 10px;
+  }
+}

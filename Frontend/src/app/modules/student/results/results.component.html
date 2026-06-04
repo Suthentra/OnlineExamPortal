@@ -53,7 +53,9 @@
               View Details
             </button>
           </td>
-        </table>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -65,32 +67,17 @@
       <button class="modal-close" (click)="closeModal()">✖</button>
     </div>
     <div class="modal-body" *ngIf="selectedResult">
-      <!-- Summary Cards -->
-      <div class="summary-cards">
-        <div class="summary-card">
-          <div class="summary-value">{{ selectedResult.score }}/{{ selectedResult.totalMarks }}</div>
-          <div class="summary-label">Total Score</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-value">{{ selectedResult.percentage }}%</div>
-          <div class="summary-label">Percentage</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-value">{{ getCorrectCount() }}</div>
-          <div class="summary-label">Correct</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-value">{{ getWrongCount() }}</div>
-          <div class="summary-label">Wrong</div>
-        </div>
-      </div>
-
       <!-- Status Badge -->
       <div class="status-section" [class.passed-bg]="selectedResult.isPassed" [class.failed-bg]="!selectedResult.isPassed">
         <h3>{{ selectedResult.isPassed ? '✅ PASSED' : '❌ FAILED' }}</h3>
       </div>
 
-      <!-- Answer Details -->
+      <p><strong>Exam:</strong> {{ selectedResult.examTitle }}</p>
+      <p><strong>Score:</strong> {{ selectedResult.score }}/{{ selectedResult.totalMarks }}</p>
+      <p><strong>Percentage:</strong> {{ selectedResult.percentage }}%</p>
+      <p><strong>Submitted:</strong> {{ selectedResult.submittedAt | date:'medium' }}</p>
+      
+      <hr>
       <h4>Answer Details</h4>
       <div class="answers-list">
         <div *ngFor="let answer of selectedAnswers; let i = index" class="answer-item" [class.correct]="answer.isCorrect" [class.wrong]="!answer.isCorrect">

@@ -37,7 +37,32 @@ namespace OnlineExamPortal.API.Controllers
             });
             return Ok(result);
         }
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var user = await _userRepository.GetByIdAsync(userId);
 
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (user.PasswordHash != request.CurrentPassword)
+            {
+                return BadRequest(new { message = "Current password is incorrect" });
+            }
+
+            user.PasswordHash = request.NewPassword;
+            await _userRepository.UpdateAsync(user);
+
+            return Ok(new { message = "Password changed successfully" });
+        }
+
+        public class ChangePasswordRequestDto
+        {
+            public string CurrentPassword { get; set; }
+            public string NewPassword { get; set; }
+        }
         // GET: api/Users/{id} - Users can see their own profile, Admin can see any
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)

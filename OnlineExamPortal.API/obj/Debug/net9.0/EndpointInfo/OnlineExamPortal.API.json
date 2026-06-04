@@ -36,6 +36,28 @@
         }
       }
     },
+    "/api/Auth/check-email/{email}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Auth/login": {
       "post": {
         "tags": [
@@ -237,6 +259,18 @@
         }
       }
     },
+    "/api/Exams/published": {
+      "get": {
+        "tags": [
+          "Exams"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Exams/{id}": {
       "get": {
         "tags": [
@@ -344,11 +378,65 @@
         }
       }
     },
-    "/api/Exams/published": {
+    "/api/QuestionBank": {
       "get": {
         "tags": [
-          "Exams"
+          "QuestionBank"
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/QuestionBank/add-to-exam/{examId}": {
+      "post": {
+        "tags": [
+          "QuestionBank"
+        ],
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -503,7 +591,7 @@
         }
       }
     },
-    "/api/Questions/bulk/exam/{examId}": {
+    "/api/Questions/bulk/{examId}": {
       "post": {
         "tags": [
           "Questions"
@@ -523,17 +611,26 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkCreateQuestionDto"
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                }
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkCreateQuestionDto"
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                }
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkCreateQuestionDto"
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                }
               }
             }
           }
@@ -765,19 +862,6 @@
   },
   "components": {
     "schemas": {
-      "BulkCreateQuestionDto": {
-        "type": "object",
-        "properties": {
-          "questions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CreateQuestionRequestDto"
-            },
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "CreateExamRequestDto": {
         "type": "object",
         "properties": {

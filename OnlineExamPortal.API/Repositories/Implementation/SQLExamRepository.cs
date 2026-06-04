@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Repositories.Interface;
+using System.Data;
 
 namespace OnlineExamPortal.API.Repositories.Implementation
 {
@@ -55,7 +56,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
         {
             using SqlConnection conn = new SqlConnection(connectionString);
             using SqlCommand cmd = new SqlCommand("sp_GetExamById", conn);
-            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@Id", id);
 
             await conn.OpenAsync();
@@ -64,11 +65,11 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             if (await reader.ReadAsync())
             {
-                return new Exam
+                var exam = new Exam
                 {
                     Id = Convert.ToInt32(reader["Id"]),
-                    Title = reader["Title"].ToString()!,
-                    Description = reader["Description"].ToString()!,
+                    Title = reader["Title"]?.ToString() ?? string.Empty,
+                    Description = reader["Description"]?.ToString() ?? string.Empty,
                     TotalMarks = Convert.ToInt32(reader["TotalMarks"]),
                     DurationInMinutes = Convert.ToInt32(reader["DurationInMinutes"]),
                     StartTime = Convert.ToDateTime(reader["StartTime"]),
@@ -77,6 +78,8 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                     CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
                     UserId = Convert.ToInt32(reader["UserId"])
                 };
+
+                return exam;
             }
 
             return null;
@@ -104,7 +107,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
         {
             using SqlConnection conn = new SqlConnection(connectionString);
             using SqlCommand cmd = new SqlCommand("sp_UpdateExam", conn);
-            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.AddWithValue("@Id", exam.Id);
             cmd.Parameters.AddWithValue("@Title", exam.Title);
@@ -122,14 +125,48 @@ namespace OnlineExamPortal.API.Repositories.Implementation
         public async Task DeleteAsync(int id)
         {
             using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_DeleteExam", conn);
-            cmd.CommandType = System.Data.CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@Id", id);
-
             await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-        }
 
+            using (SqlTransaction transaction = conn.BeginTransaction())
+            {
+                try
+                {
+                    // 1. Delete answers for questions of this exam
+                    string deleteAnswersSql = @"
+                DELETE FROM Answers 
+                WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)
+            ";
+                    using SqlCommand cmdAnswers = new SqlCommand(deleteAnswersSql, conn, transaction);
+                    cmdAnswers.Parameters.AddWithValue("@ExamId", id);
+                    await cmdAnswers.ExecuteNonQueryAsync();
+
+                    // 2. Delete questions of this exam
+                    string deleteQuestionsSql = "DELETE FROM Questions WHERE ExamId = @ExamId";
+                    using SqlCommand cmdQuestions = new SqlCommand(deleteQuestionsSql, conn, transaction);
+                    cmdQuestions.Parameters.AddWithValue("@ExamId", id);
+                    await cmdQuestions.ExecuteNonQueryAsync();
+
+                    // 3. Delete exam attempts for this exam
+                    string deleteAttemptsSql = "DELETE FROM ExamAttempts WHERE ExamId = @ExamId";
+                    using SqlCommand cmdAttempts = new SqlCommand(deleteAttemptsSql, conn, transaction);
+                    cmdAttempts.Parameters.AddWithValue("@ExamId", id);
+                    await cmdAttempts.ExecuteNonQueryAsync();
+
+                    // 4. Finally delete the exam
+                    string deleteExamSql = "DELETE FROM Exams WHERE Id = @ExamId";
+                    using SqlCommand cmdExam = new SqlCommand(deleteExamSql, conn, transaction);
+                    cmdExam.Parameters.AddWithValue("@ExamId", id);
+                    await cmdExam.ExecuteNonQueryAsync();
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+        }
         public async Task PublishAsync(int id)
         {
             using SqlConnection conn = new SqlConnection(connectionString);

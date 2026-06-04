@@ -134,39 +134,37 @@ namespace OnlineExamPortal.API.Controllers
         }
 
         // POST: api/Questions/bulk/exam/{examId} - Admin only
-        [HttpPost("bulk/exam/{examId}")]
+        [HttpPost("bulk/{examId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> BulkCreateQuestions(int examId, [FromBody] BulkCreateQuestionDto request)
+        public async Task<IActionResult> BulkCreateQuestions(int examId, [FromBody] List<CreateQuestionRequestDto> questions)
         {
-            var exam = await _examRepository.GetByIdAsync(examId);
-            if (exam == null)
-                return NotFound(new { message = "Exam not found" });
-
-            var questions = new List<Question>();
-            foreach (var q in request.Questions)
+            foreach (var q in questions)
             {
-                questions.Add(new Question
+                var question = new Question
                 {
                     QuestionText = q.QuestionText,
                     OptionA = q.OptionA,
                     OptionB = q.OptionB,
-                    OptionC = q.OptionC,
-                    OptionD = q.OptionD,
+                    OptionC = q.OptionC ?? "",
+                    OptionD = q.OptionD ?? "",
                     CorrectAnswer = q.CorrectAnswer,
                     Marks = q.Marks,
                     CreatedAt = DateTime.Now,
                     ExamId = examId
-                });
+                };
+                await _questionRepository.CreateAsync(question);
             }
-
-            await _questionRepository.BulkCreateAsync(questions);
 
             // Update exam total marks
             var totalMarks = await _questionRepository.GetTotalMarksByExamIdAsync(examId);
-            exam.TotalMarks = totalMarks;
-            await _examRepository.UpdateAsync(exam);
+            var exam = await _examRepository.GetByIdAsync(examId);
+            if (exam != null)
+            {
+                exam.TotalMarks = totalMarks;
+                await _examRepository.UpdateAsync(exam);
+            }
 
-            return Ok(new { message = $"{questions.Count} questions created successfully" });
+            return Ok(new { message = $"{questions.Count} questions added successfully" });
         }
     }
 }

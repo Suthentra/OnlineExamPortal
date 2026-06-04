@@ -35,12 +35,19 @@
         <h2>Welcome back, {{ user?.fullName }}! 👋</h2>
         <p class="text-muted">Ready to test your knowledge today?</p>
       </div>
-      <button class="btn-logout" (click)="logout()">
-        <i class="fas fa-sign-out-alt"></i> Logout
-      </button>
+      <div class="header-actions">
+        <button class="btn-dark-mode" (click)="toggleDarkMode()" style="background: #e9ecef; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+  <i *ngIf="!isDarkMode" class="fas fa-moon" style="font-size: 18px; color: #1e2a4a;"></i>
+  <i *ngIf="isDarkMode" class="fas fa-sun" style="font-size: 18px; color: #ffd700;"></i>
+</button>
+        <button class="btn-logout" (click)="logout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
     </header>
 
     <div class="content">
+      
       <!-- ========== DASHBOARD TAB ========== -->
       <div *ngIf="activeTab === 'dashboard'">
         <!-- Stats Cards -->
@@ -87,7 +94,7 @@
           </div>
         </div>
 
-        <!-- Recent Activity / Instructions -->
+        <!-- Exam Instructions Section -->
         <div class="section-card">
           <div class="section-header">
             <h3>📋 Exam Instructions</h3>
@@ -134,6 +141,7 @@
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
           </div>
+          <p class="mt-2">Loading exams...</p>
         </div>
 
         <div *ngIf="!loading && allExams.length === 0" class="alert alert-info">
@@ -178,6 +186,7 @@
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
           </div>
+          <p class="mt-2">Loading results...</p>
         </div>
 
         <div *ngIf="!loading && results.length === 0" class="alert alert-info">
@@ -263,6 +272,7 @@
           </div>
         </div>
       </div>
+
     </div>
   </main>
 </div>
