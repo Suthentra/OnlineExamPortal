@@ -124,7 +124,7 @@ export class ExamComponent implements OnInit, OnDestroy {
       const remaining = this.maxFullScreenExits - this.fullScreenExitCount;
       
       this.showAlert(`⚠️ FULLSCREEN EXIT! ${remaining} warning(s) left. Auto-reentering...`, 'danger');
-      this.logViolationToAdmin('FULLSCREEN_EXIT', this.fullScreenExitCount);
+      this.saveViolationToLocal('FULLSCREEN_EXIT', this.fullScreenExitCount);
       
       if (this.fullScreenExitCount >= this.maxFullScreenExits) {
         this.showAlert('❌ Limit exceeded! Exam will be auto-submitted!', 'danger');
@@ -148,7 +148,7 @@ export class ExamComponent implements OnInit, OnDestroy {
       const remaining = this.maxTabSwitches - this.tabSwitchCount;
       
       this.showAlert(`⚠️ TAB SWITCH! ${remaining} warning(s) left.`, 'danger');
-      this.logViolationToAdmin('TAB_SWITCH', this.tabSwitchCount);
+      this.saveViolationToLocal('TAB_SWITCH', this.tabSwitchCount);
       
       if (this.tabSwitchCount >= this.maxTabSwitches) {
         this.showAlert('❌ Tab switch limit exceeded! Auto-submitting...', 'danger');
@@ -162,12 +162,13 @@ export class ExamComponent implements OnInit, OnDestroy {
   handleWindowBlur() {
     if (!this.submitted && !this.isReenteringFullscreen) {
       this.showAlert('⚠️ Stay on exam window!', 'warning');
-      this.logViolationToAdmin('WINDOW_BLUR', 1);
+      this.saveViolationToLocal('WINDOW_BLUR', 1);
       setTimeout(() => window.focus(), 100);
     }
   }
 
-  logViolationToAdmin(violationType: string, violationCount: number) {
+  // Save violation to localStorage only (no database)
+  saveViolationToLocal(violationType: string, violationCount: number) {
     const violationData = {
       attemptId: this.attemptId,
       studentId: this.user.userId,
@@ -183,18 +184,23 @@ export class ExamComponent implements OnInit, OnDestroy {
         : this.maxTabSwitches - violationCount
     };
     
-    console.log('📝 Logging violation:', violationData);
+    console.log('📝 Saving violation to localStorage:', violationData);
     
-    this.api.logViolation(violationData).subscribe({
-      next: (response) => {
-        console.log('✅ Violation saved to backend:', response);
-      },
-      error: (err) => {
-        console.error('❌ Backend save failed, saving to localStorage:', err);
-        this.api.saveViolationToLocal(violationData);
-        this.showAlert('Violation saved locally (offline mode)', 'info');
-      }
-    });
+    // Save to localStorage
+    let violations = JSON.parse(localStorage.getItem('violations') || '[]');
+    violations.push(violationData);
+    localStorage.setItem('violations', JSON.stringify(violations));
+    
+    console.log('✅ Violation saved. Total violations:', violations.length);
+  }
+
+  getViolationTypeName(type: string): string {
+    switch(type) {
+      case 'FULLSCREEN_EXIT': return 'Fullscreen Exit';
+      case 'TAB_SWITCH': return 'Tab Switch';
+      case 'WINDOW_BLUR': return 'Window Blur';
+      default: return type;
+    }
   }
 
   autoSubmitForViolation(reason: string) {

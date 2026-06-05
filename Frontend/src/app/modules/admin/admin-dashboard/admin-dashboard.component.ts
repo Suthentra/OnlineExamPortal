@@ -132,23 +132,16 @@ export class AdminDashboardComponent implements OnInit {
   loadViolations() {
     this.loadingViolations = true;
     
-    this.api.getAllViolations().subscribe({
-      next: (data: any) => {
-        console.log('Violations from API:', data);
-        this.violations = data;
-        this.filteredViolations = data;
-        this.loadingViolations = false;
-      },
-      error: (err: any) => {
-        console.error('API error, loading from localStorage:', err);
-        const localViolations = this.api.getLocalViolations();
-        console.log('Violations from localStorage:', localViolations);
-        this.violations = localViolations;
-        this.filteredViolations = localViolations;
-        this.loadingViolations = false;
-      }
-    });
-  }
+    // Load from localStorage only
+    const localViolations = JSON.parse(localStorage.getItem('violations') || '[]');
+    console.log('Violations from localStorage:', localViolations);
+    
+    this.violations = localViolations;
+    this.filteredViolations = localViolations;
+    this.loadingViolations = false;
+}
+
+// Remove API calls - use localStorage only
 
   filterViolations() {
     if (!this.searchTerm) {
@@ -188,7 +181,6 @@ export class AdminDashboardComponent implements OnInit {
       const student = studentMap.get(violation.studentId)!;
       student.totalViolations++;
       
-      // Check if exam already exists
       let exam = student.exams.find(e => e.examId === violation.examId);
       if (!exam) {
         exam = {
@@ -202,7 +194,6 @@ export class AdminDashboardComponent implements OnInit {
       
       exam.violations.push(violation);
       
-      // Update last violation time
       const violationTime = new Date(violation.timestamp).getTime();
       if (!exam.lastViolation || violationTime > new Date(exam.lastViolation).getTime()) {
         exam.lastViolation = violation.timestamp;
@@ -212,7 +203,6 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
     
-    // Convert to array and calculate examsAffected
     const result: StudentViolation[] = Array.from(studentMap.values()).map(student => ({
       ...student,
       examsAffected: student.exams.length,
@@ -258,9 +248,137 @@ export class AdminDashboardComponent implements OnInit {
     this.showModal = true;
   }
 
-  notifyStudent(student: StudentViolation) {
-    if (confirm(`Send warning notification to ${student.studentName}?\n\nTotal Violations: ${student.totalViolations}\nExams Affected: ${student.examsAffected}`)) {
-      alert(`📧 Warning notification sent to ${student.studentName}`);
+// Send notification to student (store in localStorage for now)
+notifyStudent(student: StudentViolation) {
+    const message = `⚠️ Academic Integrity Warning ⚠️\n\nDear ${student.studentName},\n\nYou have received ${student.totalViolations} violation(s) across ${student.examsAffected} exam(s).\n\nViolations detected:\n${this.getViolationBreakdown(student)}\n\nPlease ensure you follow exam rules:\n• Stay in fullscreen mode\n• Do not switch tabs\n• Do not click outside the exam window\n\nRepeated violations may lead to automatic exam submission.\n\nRegards,\nExam Portal Admin`;
+    
+    if (confirm(`Send warning notification to ${student.studentName}?\n\nViolations: ${student.totalViolations}\nExams: ${student.examsAffected}`)) {
+        
+        // Store notification in localStorage for student to see
+        const notification = {
+            id: Date.now(),
+            studentId: student.studentId,
+            studentName: student.studentName,
+            message: message,
+            type: 'warning',
+            read: false,
+            timestamp: new Date().toISOString(),
+            violations: student.totalViolations
+        };
+        
+        // Get existing notifications
+        let notifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
+        notifications.push(notification);
+        localStorage.setItem('student_notifications', JSON.stringify(notifications));
+        
+        // Also store in student's specific notification area
+        let studentNotifications = JSON.parse(localStorage.getItem(`notifications_${student.studentId}`) || '[]');
+        studentNotifications.push(notification);
+        localStorage.setItem(`notifications_${student.studentId}`, JSON.stringify(studentNotifications));
+        
+        alert(`✅ Warning notification sent to ${student.studentName}!\n\nThey will see it when they log in.`);
+        
+        // Optional: Play sound effect
+        this.playNotificationSound();
+    }
+}
+
+// Play sound effect for notification
+playNotificationSound() {
+    const audio = new Audio();
+    // Simple beep using Web Audio API
+    try {
+        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.frequency.value = 800;
+        gain.gain.value = 0.3;
+        oscillator.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.5);
+        oscillator.stop(context.currentTime + 0.5);
+    } catch(e) {
+        console.log('Sound not supported');
+    }
+}
+
+  // ========== DELETE VIOLATION METHODS ==========
+
+  deleteStudentViolations(student: StudentViolation) {
+    if (confirm(`⚠️ Are you sure you want to delete ALL violations for ${student.studentName}?\n\nThis action cannot be undone!`)) {
+      this.api.deleteViolationsByStudent(student.studentId).subscribe({
+        next: () => {
+          alert(`✅ All violations for ${student.studentName} have been deleted.`);
+          this.loadViolations();
+        },
+        error: (err) => {
+          console.error('Delete failed:', err);
+          alert('❌ Failed to delete violations. Please try again.');
+        }
+      });
+    }
+  }
+
+  deleteViolationType(studentId: number, examId: number, violationType: string) {
+    if (confirm(`⚠️ Delete ${this.getViolationTypeName(violationType)} violations for this exam?`)) {
+      const violationsToDelete = this.violations.filter(v => 
+        v.studentId === studentId && 
+        v.examId === examId && 
+        v.violationType === violationType
+      );
+      
+      if (violationsToDelete.length === 0) return;
+      
+      let deleted = 0;
+      violationsToDelete.forEach(v => {
+        this.api.deleteViolation(v.attemptId).subscribe({
+          next: () => {
+            deleted++;
+            if (deleted === violationsToDelete.length) {
+              alert(`✅ Deleted ${deleted} violation(s).`);
+              this.loadViolations();
+            }
+          },
+          error: (err) => console.error('Delete failed:', err)
+        });
+      });
+    }
+  }
+
+  deleteSingleViolation(attemptId: number) {
+    if (confirm(`⚠️ Delete this violation?`)) {
+      this.api.deleteViolation(attemptId).subscribe({
+        next: () => {
+          alert('✅ Violation deleted successfully.');
+          this.loadViolations();
+          this.closeModal();
+        },
+        error: (err) => {
+          console.error('Delete failed:', err);
+          alert('❌ Failed to delete violation.');
+        }
+      });
+    }
+  }
+
+  clearAllViolations() {
+    if (confirm('⚠️⚠️⚠️ DANGER: This will delete ALL violations from the system!\n\nThis action cannot be undone. Are you absolutely sure?')) {
+      const userInput = prompt('Type "DELETE" to confirm:');
+      if (userInput === 'DELETE') {
+        this.api.clearAllViolations().subscribe({
+          next: () => {
+            alert('✅ All violations have been cleared.');
+            this.loadViolations();
+          },
+          error: (err) => {
+            console.error('Clear failed:', err);
+            alert('❌ Failed to clear violations. Please try again.');
+          }
+        });
+      } else {
+        alert('Cancelled. No violations were deleted.');
+      }
     }
   }
 

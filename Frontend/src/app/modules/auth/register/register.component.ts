@@ -26,8 +26,7 @@ export class RegisterComponent {
     return emailRegex.test(email);
   }
 validateEmail() {
-  // This will trigger the email validation on each keystroke
-  // The isValidEmail() function already exists
+  
 }
 async validateEmailAvailability() {
   if (!this.isValidEmail(this.email)) return;

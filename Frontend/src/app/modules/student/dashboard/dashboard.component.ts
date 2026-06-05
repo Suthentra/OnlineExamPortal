@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
@@ -31,6 +31,11 @@ export class DashboardComponent implements OnInit {
   activeTab: string = 'exams';
   isDarkMode: boolean = false;
 
+  // Notifications
+  showNotifications: boolean = false;
+  notifications: any[] = [];
+  unreadCount: number = 0;
+
   constructor(
     private auth: AuthService,
     private api: ApiService,
@@ -42,6 +47,7 @@ export class DashboardComponent implements OnInit {
     this.user = this.auth.getUser();
     this.isDarkMode = this.darkModeService.isDarkMode;
     this.loadDashboardData();
+    this.loadNotifications();
   }
 
   toggleDarkMode() {
@@ -59,18 +65,14 @@ export class DashboardComponent implements OnInit {
     this.api.getPublishedExams().subscribe({
       next: (data: any) => {
         this.allExams = data;
-        
         this.api.getStudentResults(this.user.userId).subscribe({
           next: (results: any) => {
             const examIds: number[] = results.map((r: any) => r.examId);
             const completedExamIdsSet = new Set<number>(examIds);
-            
             this.availableExamsList = data.filter((exam: any) => !completedExamIdsSet.has(exam.id));
             this.availableExams = this.availableExamsList.length;
-            
             this.attemptedExams.clear();
             examIds.forEach(id => this.attemptedExams.add(id));
-            
             this.loading = false;
           },
           error: () => {
@@ -160,6 +162,48 @@ export class DashboardComponent implements OnInit {
     if (this.studentRank === 2) return '🥈';
     if (this.studentRank === 3) return '🥉';
     return '📊';
+  }
+
+  // ========== NOTIFICATION METHODS ==========
+
+  loadNotifications() {
+    const studentId = this.user?.userId;
+    const notifications = JSON.parse(localStorage.getItem(`notifications_${studentId}`) || '[]');
+    this.notifications = notifications.sort((a: any, b: any) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    this.unreadCount = this.notifications.filter((n: any) => !n.read).length;
+    console.log('Loaded notifications:', this.notifications.length);
+  }
+
+  toggleNotificationDropdown() {
+    this.showNotifications = !this.showNotifications;
+  }
+
+  markAsRead(notificationId: number) {
+    const studentId = this.user?.userId;
+    let notifications = JSON.parse(localStorage.getItem(`notifications_${studentId}`) || '[]');
+    notifications = notifications.map((n: any) => 
+      n.id === notificationId ? { ...n, read: true } : n
+    );
+    localStorage.setItem(`notifications_${studentId}`, JSON.stringify(notifications));
+    this.loadNotifications();
+  }
+
+  clearAllNotifications() {
+    const studentId = this.user?.userId;
+    localStorage.setItem(`notifications_${studentId}`, '[]');
+    this.loadNotifications();
+    this.showNotifications = false;
+  }
+
+  // Close dropdown when clicking outside
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.notification-dropdown')) {
+      this.showNotifications = false;
+    }
   }
 
   logout() {

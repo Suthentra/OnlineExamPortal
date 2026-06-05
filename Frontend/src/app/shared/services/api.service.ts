@@ -375,4 +375,38 @@ export class ApiService {
   clearLocalViolations() {
     localStorage.removeItem('violations');
   }
+
+  // ============ VIOLATION APIs ============
+
+// Delete a single violation
+deleteViolation(violationId: number) {
+  const token = this.auth.getToken();
+  return this.http.delete(`${this.apiUrl}/ExamAttempt/delete-violation/${violationId}`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
+
+// Delete all violations for a student
+deleteViolationsByStudent(studentId: number) {
+  const token = this.auth.getToken();
+  return this.http.delete(`${this.apiUrl}/ExamAttempt/delete-violations/student/${studentId}`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
+
+// Delete all violations for an exam
+deleteViolationsByExam(examId: number) {
+  const token = this.auth.getToken();
+  return this.http.delete(`${this.apiUrl}/ExamAttempt/delete-violations/exam/${examId}`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
+
+// Clear all violations
+clearAllViolations() {
+  const token = this.auth.getToken();
+  return this.http.delete(`${this.apiUrl}/ExamAttempt/clear-all-violations`, {
+    headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+  });
+}
 }

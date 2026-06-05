@@ -465,6 +465,11 @@
   margin-right: 10px;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 .refresh-btn {
   background: #f0f2f5;
   border: none;
@@ -477,6 +482,16 @@
 .refresh-btn:hover {
   background: #e0e7ff;
   color: #4361ee;
+}
+
+.delete-all-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.delete-all-btn:hover {
+  background: #dc2626;
+  color: white;
 }
 
 /* Violation Stats */
@@ -510,7 +525,6 @@
 .bg-red { background: #fee2e2; color: #dc2626; }
 .bg-orange { background: #fef3c7; color: #d97706; }
 .bg-blue { background: #e0e7ff; color: #4361ee; }
-.bg-green { background: #d1fae5; color: #10b981; }
 
 .stat-details h3 {
   font-size: 28px;
@@ -574,7 +588,7 @@
 
 .violations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
   gap: 20px;
   margin-bottom: 25px;
 }
@@ -752,6 +766,21 @@
   color: #4361ee;
 }
 
+.delete-single {
+  background: none;
+  border: none;
+  color: rgba(0,0,0,0.4);
+  cursor: pointer;
+  margin-left: 5px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.delete-single:hover {
+  color: #dc2626;
+  transform: scale(1.1);
+}
+
 .last-violation {
   font-size: 11px;
   color: #6c757d;
@@ -769,7 +798,7 @@
   border-top: 1px solid #e9ecef;
 }
 
-.btn-details, .btn-notify {
+.btn-details, .btn-notify, .btn-delete {
   flex: 1;
   padding: 8px;
   border: none;
@@ -777,6 +806,10 @@
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .btn-details {
@@ -796,6 +829,16 @@
 
 .btn-notify:hover {
   background: #d97706;
+  color: white;
+}
+
+.btn-delete {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
   color: white;
 }
 
@@ -904,6 +947,8 @@
 .exam-violation-item .exam-title { display: flex; justify-content: space-between; margin-bottom: 10px; }
 .violation-table-modal { width: 100%; font-size: 12px; border-collapse: collapse; }
 .violation-table-modal th, .violation-table-modal td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e9ecef; }
+.delete-icon { background: none; border: none; cursor: pointer; color: #dc2626; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; }
+.delete-icon:hover { background: #fee2e2; transform: scale(1.1); }
 .violation-tag-sm { padding: 2px 8px; border-radius: 12px; font-size: 11px; }
 .violation-tag-sm.fullscreen { background: #fef3c7; color: #d97706; }
 .violation-tag-sm.tabswitch { background: #fee2e2; color: #dc2626; }
@@ -1044,6 +1089,14 @@ body.dark-mode .btn-dark-mode i {
   color: #ffd700;
 }
 
+body.dark-mode .delete-single {
+  color: rgba(255,255,255,0.5);
+}
+
+body.dark-mode .delete-single:hover {
+  color: #ff6b6b;
+}
+
 /* ========================================
    RESPONSIVE DESIGN
    ======================================== */
@@ -1135,5 +1188,13 @@ body.dark-mode .btn-dark-mode i {
   
   .violation-count-inline {
     margin-left: 0;
+  }
+  
+  .card-footer {
+    flex-wrap: wrap;
+  }
+  
+  .card-footer button {
+    min-width: 100%;
   }
 }

@@ -36,10 +36,7 @@
         <p class="text-muted">Monitor and manage your examination portal</p>
       </div>
       <div class="header-actions">
-        <button class="btn-dark-mode" (click)="toggleDarkMode()">
-          <i *ngIf="!isDarkMode" class="fas fa-moon"></i>
-          <i *ngIf="isDarkMode" class="fas fa-sun"></i>
-        </button>
+        
         <button class="btn-logout" (click)="logout()">
           <i class="fas fa-sign-out-alt"></i> Logout
         </button>
@@ -105,121 +102,126 @@
         </div>
       </div>
 
-      <!-- ========== VIOLATIONS TAB - GROUPED VIEW ========== -->
-      <div *ngIf="activeTab === 'violations'">
+      
+<div *ngIf="activeTab === 'violations'">
+  
+  <!-- Header -->
+  <div class="violations-header">
+    <h2><i class="fas fa-shield-alt"></i> Security Violations</h2>
+    <button class="refresh-btn" (click)="loadViolations()">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="violation-stats">
+    <div class="violation-stat">
+      <div class="stat-icon bg-red"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="stat-details"><h3>{{ getTotalViolations() }}</h3><p>Total Violations</p></div>
+    </div>
+    <div class="violation-stat">
+      <div class="stat-icon bg-orange"><i class="fas fa-users"></i></div>
+      <div class="stat-details"><h3>{{ getStudentsWithViolations() }}</h3><p>Students Flagged</p></div>
+    </div>
+    <div class="violation-stat">
+      <div class="stat-icon bg-blue"><i class="fas fa-file-alt"></i></div>
+      <div class="stat-details"><h3>{{ getExamsWithViolations() }}</h3><p>Exams Affected</p></div>
+    </div>
+  </div>
+
+  <!-- Search Filter -->
+  <div class="search-filter">
+    <div class="search-input">
+      <i class="fas fa-search"></i>
+      <input type="text" placeholder="Search by student name or email..." [(ngModel)]="searchTerm" (input)="filterViolations()">
+    </div>
+    <button class="clear-filters" (click)="clearSearch()" *ngIf="searchTerm">
+      <i class="fas fa-times"></i> Clear
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loadingViolations" class="loading">
+    <div class="spinner"></div>
+    <p>Loading violations...</p>
+  </div>
+
+  <!-- No Violations -->
+  <div *ngIf="!loadingViolations && filteredViolations.length === 0" class="no-violations">
+    <i class="fas fa-shield-alt"></i>
+    <h3>No Violations Found</h3>
+    <p>All students are following the exam rules perfectly! 🎉</p>
+  </div>
+
+  <!-- Violations Cards - Grouped by Student (No Delete Buttons) -->
+  <div class="violations-grid" *ngIf="!loadingViolations && filteredViolations.length > 0">
+    <div class="violation-card" *ngFor="let student of getGroupedViolations()">
+      <div class="card-header student-header">
+        <div class="student-avatar-large">
+          {{ student.studentName.charAt(0) }}
+        </div>
+        <div class="student-header-info">
+          <h3>{{ student.studentName }}</h3>
+          <p>{{ student.studentEmail }}</p>
+        </div>
         
-        <!-- Header -->
-        <div class="violations-header">
-          <h2><i class="fas fa-shield-alt"></i> Security Violations</h2>
-          <button class="refresh-btn" (click)="loadViolations()"><i class="fas fa-sync-alt"></i> Refresh</button>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="violation-stats">
-          <div class="violation-stat">
-            <div class="stat-icon bg-red"><i class="fas fa-exclamation-triangle"></i></div>
-            <div class="stat-details"><h3>{{ getTotalViolations() }}</h3><p>Total Violations</p></div>
+      </div>
+      
+      <div class="card-body">
+        <!-- Summary Stats -->
+        <div class="summary-stats">
+          <div class="stat-chip">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>{{ student.totalViolations }} Total Violations</span>
           </div>
-          <div class="violation-stat">
-            <div class="stat-icon bg-orange"><i class="fas fa-users"></i></div>
-            <div class="stat-details"><h3>{{ getStudentsWithViolations() }}</h3><p>Students Flagged</p></div>
+          <div class="stat-chip">
+            <i class="fas fa-file-alt"></i>
+            <span>{{ student.examsAffected }} Exams Affected</span>
           </div>
-          <div class="violation-stat">
-            <div class="stat-icon bg-blue"><i class="fas fa-file-alt"></i></div>
-            <div class="stat-details"><h3>{{ getExamsWithViolations() }}</h3><p>Exams Affected</p></div>
+          <div class="stat-chip" [class.warning]="student.totalViolations >= 2">
+            <i class="fas fa-chart-line"></i>
+            <span>{{ getViolationBreakdown(student) }}</span>
           </div>
         </div>
 
-        <!-- Search Filter -->
-        <div class="search-filter">
-          <div class="search-input">
-            <i class="fas fa-search"></i>
-            <input type="text" placeholder="Search by student name or email..." [(ngModel)]="searchTerm" (input)="filterViolations()">
-          </div>
-          <button class="clear-filters" (click)="clearSearch()" *ngIf="searchTerm">
-            <i class="fas fa-times"></i> Clear
-          </button>
-        </div>
-
-        <!-- Loading -->
-        <div *ngIf="loadingViolations" class="loading">
-          <div class="spinner"></div>
-          <p>Loading violations...</p>
-        </div>
-
-        <!-- No Violations -->
-        <div *ngIf="!loadingViolations && filteredViolations.length === 0" class="no-violations">
-          <i class="fas fa-shield-alt"></i>
-          <h3>No Violations Found</h3>
-          <p>All students are following the exam rules perfectly! 🎉</p>
-        </div>
-
-        <!-- Violations Cards - Grouped by Student -->
-        <div class="violations-grid" *ngIf="!loadingViolations && filteredViolations.length > 0">
-          <div class="violation-card" *ngFor="let student of getGroupedViolations()">
-            <div class="card-header student-header">
-              <div class="student-avatar-large">
-                {{ student.studentName.charAt(0) }}
-              </div>
-              <div class="student-header-info">
-                <h3>{{ student.studentName }}</h3>
-                <p>{{ student.studentEmail }}</p>
-              </div>
-            
+        <!-- Exam-wise Violation Details -->
+        <div class="exam-details">
+          <div class="exam-detail-item" *ngFor="let exam of student.exams">
+            <div class="exam-title">
+              <i class="fas fa-file-alt"></i>
+              <strong>{{ exam.examTitle }}</strong>
+              <span class="violation-count-inline">{{ getExamViolationCount(exam.violations) }} violation(s)</span>
             </div>
-            
-            <div class="card-body">
-              <!-- Summary Stats -->
-              <div class="summary-stats">
-                <div class="stat-chip">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <span>{{ student.totalViolations }} Total Violations</span>
-                </div>
-                <div class="stat-chip">
-                  <i class="fas fa-file-alt"></i>
-                  <span>{{ student.examsAffected }} Exams Affected</span>
-                </div>
-                
-              </div>
-
-              <!-- Exam-wise Violation Details -->
-              <div class="exam-details">
-                <div class="exam-detail-item" *ngFor="let exam of student.exams">
-                  <div class="exam-title">
-                    <i class="fas fa-file-alt"></i>
-                    <strong>{{ exam.examTitle }}</strong>
-                    <span class="violation-count-inline">{{ getExamViolationCount(exam.violations) }} violation(s)</span>
-                  </div>
-                  <div class="violation-types">
-                    <span *ngFor="let type of getUniqueViolationTypes(exam.violations)" 
-                          class="violation-type-badge" 
-                          [class.fullscreen]="type === 'FULLSCREEN_EXIT'"
-                          [class.tabswitch]="type === 'TAB_SWITCH'"
-                          [class.windowblur]="type === 'WINDOW_BLUR'">
-                      <i [class]="getViolationIcon(type)"></i>
-                      {{ getViolationTypeName(type) }}
-                      ({{ getViolationCountForType(exam.violations, type) }}x)
-                    </span>
-                  </div>
-                  <div class="last-violation">
-                    <i class="far fa-clock"></i>
-                    Last: {{ exam.lastViolation | date:'MMM d, h:mm a' }}
-                  </div>
-                </div>
-              </div>
+            <div class="violation-types">
+              <span *ngFor="let type of getUniqueViolationTypes(exam.violations)" 
+                    class="violation-type-badge" 
+                    [class.fullscreen]="type === 'FULLSCREEN_EXIT'"
+                    [class.tabswitch]="type === 'TAB_SWITCH'"
+                    [class.windowblur]="type === 'WINDOW_BLUR'">
+                <i [class]="getViolationIcon(type)"></i>
+                {{ getViolationTypeName(type) }}
+                ({{ getViolationCountForType(exam.violations, type) }}x)
+              </span>
             </div>
-            
-            <div class="card-footer">
-              <button class="btn-details" (click)="viewStudentViolations(student)">
-                <i class="fas fa-eye"></i> View All Details
-              </button>
-              <button class="btn-notify" (click)="notifyStudent(student)">
-                <i class="fas fa-bell"></i> Send Warning
-              </button>
+            <div class="last-violation">
+              <i class="farfa-clock"></i>
+              Last: {{ exam.lastViolation | date:'MMM d, h:mm a' }}
             </div>
           </div>
         </div>
       </div>
+      
+      <div class="card-footer">
+        <button class="btn-details" (click)="viewStudentViolations(student)">
+          <i class="fas fa-eye"></i> View Details
+        </button>
+        <button class="btn-notify" (click)="notifyStudent(student)">
+          <i class="fas fa-bell"></i> Send Warning
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
     </div>
   </main>
 </div>
@@ -233,19 +235,22 @@
       <!-- Exams List Modal -->
       <div *ngIf="modalType === 'exams'">
         <table class="modal-table"><thead><tr><th>ID</th><th>Exam Name</th><th>Status</th><th>Questions</th></tr></thead>
-        <tbody><tr *ngFor="let exam of modalData"><td>{{ exam.id }}</td><td><strong>{{ exam.title }}</strong></td><td>{{ exam.status }}</td><td>{{ exam.questions }}</td></tr></tbody></table>
+        <tbody><tr *ngFor="let exam of modalData"><td>{{ exam.id }}</td><td><strong>{{ exam.title }}</strong></td><td>{{ exam.status }}</td><td>{{ exam.questions }}</td></tr></tbody>
+        </table>
       </div>
 
       <!-- Students List Modal -->
       <div *ngIf="modalType === 'students'">
         <table class="modal-table"><thead><tr><th>Name</th><th>Email</th><th>Registered On</th><th>Attempts</th><th>Avg Score</th><th>Action</th></tr></thead>
-        <tbody><tr *ngFor="let student of modalData"><td><strong>{{ student.name }}</strong></td><td>{{ student.email }}</td><td>{{ student.registeredOn }}</td><td>{{ student.attemptsCount }}</td><td>{{ student.avgScore }}%</td><td><button class="btn-view" (click)="viewStudentDetails(student.id)">View</button></td></tr></tbody></table>
+        <tbody><tr *ngFor="let student of modalData"><td><strong>{{ student.name }}</strong></td><td>{{ student.email }}</td><td>{{ student.registeredOn }}</td><td>{{ student.attemptsCount }}</td><td>{{ student.avgScore }}%</td><td><button class="btn-view" (click)="viewStudentDetails(student.id)">View</button></td></tr></tbody>
+        </table>
       </div>
 
       <!-- Attempts List Modal -->
       <div *ngIf="modalType === 'attempts'">
         <table class="modal-table"><thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr></thead>
-        <tbody><tr *ngFor="let attempt of modalData"><td>{{ attempt.studentName }}</td><td>{{ attempt.examTitle }}</td><td>{{ attempt.score }}/{{ attempt.totalMarks }}</td><td [class.text-success]="attempt.percentage >= 40" [class.text-danger]="attempt.percentage < 40">{{ attempt.percentage }}%</td><td>{{ attempt.status }}</td><td>{{ attempt.submittedAt }}</td></tr></tbody></table>
+        <tbody><tr *ngFor="let attempt of modalData"><td>{{ attempt.studentName }}</td><td>{{ attempt.examTitle }}</td><td>{{ attempt.score }}/{{ attempt.totalMarks }}</td><td [class.text-success]="attempt.percentage >= 40" [class.text-danger]="attempt.percentage < 40">{{ attempt.percentage }}%</td><td>{{ attempt.status }}</td><td>{{ attempt.submittedAt }}</td></tr></tbody>
+        </table>
       </div>
 
       <!-- Average Score Modal -->
@@ -283,7 +288,7 @@
                   <td><span class="violation-tag-sm" [class]="v.violationType.toLowerCase()">{{ getViolationTypeName(v.violationType) }}</span></td>
                   <td>{{ v.violationCount }}x</td>
                   <td>{{ v.timestamp | date:'medium' }}</td>
-                </tr>
+                  </tr>
               </tbody>
             </table>
           </div>

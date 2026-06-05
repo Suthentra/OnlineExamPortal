@@ -1,4 +1,4 @@
-﻿
+﻿using OnlineExamPortal.API.Models.Domain;
 namespace OnlineExamPortal.API.Repositories.Interface
 {
     public interface IExamRepository

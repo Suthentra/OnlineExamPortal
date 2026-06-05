@@ -19,7 +19,6 @@ namespace OnlineExamPortal.API.Controllers
         private readonly string _connectionString;
         private readonly IEmailService _emailService;
 
-        // SINGLE CONSTRUCTOR - with all dependencies
         public ExamAttemptController(
             IExamAttemptRepository examAttemptRepository,
             IExamRepository examRepository,
@@ -34,10 +33,306 @@ namespace OnlineExamPortal.API.Controllers
             _userRepository = userRepository;
             _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
             _emailService = emailService;
-            Console.WriteLine($"Connection String loaded: {_connectionString != null}");
         }
 
-        // POST: api/ExamAttempt/start
+        // ========== GET ALL VIOLATIONS ==========
+        [HttpGet("all-violations")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllViolations()
+        {
+            try
+            {
+                var violations = new List<object>();
+
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = @"
+            SELECT 
+                ea.Id as attemptId,
+                ea.UserId as studentId,
+                u.FullName as studentName,
+                u.Email as studentEmail,
+                ea.ExamId,
+                e.Title as examTitle,
+                ea.ViolationType,
+                ea.ViolationCount,
+                ea.Timestamp,
+                ea.RemainingWarnings
+            FROM ExamAttempts ea
+            INNER JOIN Users u ON ea.UserId = u.Id
+            INNER JOIN Exams e ON ea.ExamId = e.Id
+            WHERE ea.ViolationType IS NOT NULL 
+            ORDER BY ea.Timestamp DESC";
+
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                await conn.OpenAsync();
+
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    violations.Add(new
+                    {
+                        attemptId = Convert.ToInt32(reader["attemptId"]),
+                        studentId = Convert.ToInt32(reader["studentId"]),
+                        studentName = reader["studentName"]?.ToString() ?? "Unknown",
+                        studentEmail = reader["studentEmail"]?.ToString() ?? "",
+                        examId = Convert.ToInt32(reader["ExamId"]),
+                        examTitle = reader["examTitle"]?.ToString() ?? "Unknown",
+                        violationType = reader["ViolationType"]?.ToString(),
+                        violationCount = reader["ViolationCount"] != DBNull.Value ? Convert.ToInt32(reader["ViolationCount"]) : 1,
+                        timestamp = reader["Timestamp"] != DBNull.Value ? Convert.ToDateTime(reader["Timestamp"]).ToString("o") : DateTime.Now.ToString("o"),
+                        remainingWarnings = reader["RemainingWarnings"] != DBNull.Value ? Convert.ToInt32(reader["RemainingWarnings"]) : 0
+                    });
+                }
+
+                Console.WriteLine($"Found {violations.Count} violations in database");
+                return Ok(violations);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllViolations Error: {ex.Message}");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost("log-violation")]
+        [Authorize]
+        public async Task<IActionResult> LogViolation([FromBody] ViolationRequestDto request)
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                // First check if an exam attempt record exists for this exam and student
+                string checkAttemptSql = @"
+            SELECT Id FROM ExamAttempts 
+            WHERE UserId = @UserId AND ExamId = @ExamId AND Status = 'InProgress'";
+
+                using SqlCommand checkCmd = new SqlCommand(checkAttemptSql, conn);
+                checkCmd.Parameters.AddWithValue("@UserId", request.StudentId);
+                checkCmd.Parameters.AddWithValue("@ExamId", request.ExamId);
+
+                var existingAttempt = await checkCmd.ExecuteScalarAsync();
+                int attemptId;
+
+                if (existingAttempt != null)
+                {
+                    attemptId = Convert.ToInt32(existingAttempt);
+
+                    // Update existing attempt with violation
+                    string updateSql = @"
+                UPDATE ExamAttempts 
+                SET ViolationType = @ViolationType,
+                    ViolationCount = @ViolationCount,
+                    Timestamp = @Timestamp,
+                    RemainingWarnings = @RemainingWarnings
+                WHERE Id = @AttemptId";
+
+                    using SqlCommand updateCmd = new SqlCommand(updateSql, conn);
+                    updateCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                    updateCmd.Parameters.AddWithValue("@ViolationType", request.ViolationType);
+                    updateCmd.Parameters.AddWithValue("@ViolationCount", request.ViolationCount);
+                    updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.Now);
+                    updateCmd.Parameters.AddWithValue("@RemainingWarnings", request.RemainingWarnings);
+
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    // Create a new violation record
+                    string insertSql = @"
+                INSERT INTO ExamAttempts 
+                (UserId, ExamId, ViolationType, ViolationCount, Timestamp, RemainingWarnings, Status, StartedAt)
+                VALUES 
+                (@UserId, @ExamId, @ViolationType, @ViolationCount, @Timestamp, @RemainingWarnings, 'Violation', GETDATE())";
+
+                    using SqlCommand insertCmd = new SqlCommand(insertSql, conn);
+                    insertCmd.Parameters.AddWithValue("@UserId", request.StudentId);
+                    insertCmd.Parameters.AddWithValue("@ExamId", request.ExamId);
+                    insertCmd.Parameters.AddWithValue("@ViolationType", request.ViolationType);
+                    insertCmd.Parameters.AddWithValue("@ViolationCount", request.ViolationCount);
+                    insertCmd.Parameters.AddWithValue("@Timestamp", DateTime.Now);
+                    insertCmd.Parameters.AddWithValue("@RemainingWarnings", request.RemainingWarnings);
+
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+
+                return Ok(new { success = true, message = "Violation logged successfully to database" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LogViolation Error: {ex.Message}");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== DELETE SINGLE VIOLATION ==========
+        [HttpDelete("delete-violation/{attemptId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteViolation(int attemptId)
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                // Check if violation exists
+                string checkSql = "SELECT Id FROM ExamAttempts WHERE Id = @AttemptId AND ViolationType IS NOT NULL";
+                using SqlCommand checkCmd = new SqlCommand(checkSql, conn);
+                checkCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                var exists = await checkCmd.ExecuteScalarAsync();
+
+                if (exists == null)
+                {
+                    return NotFound(new { success = false, message = "Violation not found" });
+                }
+
+                // Delete the violation
+                string deleteSql = "DELETE FROM ExamAttempts WHERE Id = @AttemptId";
+                using SqlCommand deleteCmd = new SqlCommand(deleteSql, conn);
+                deleteCmd.Parameters.AddWithValue("@AttemptId", attemptId);
+                int rows = await deleteCmd.ExecuteNonQueryAsync();
+
+                if (rows > 0)
+                {
+                    return Ok(new { success = true, message = "Violation deleted successfully" });
+                }
+                else
+                {
+                    return BadRequest(new { success = false, message = "Failed to delete violation" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== DELETE ALL VIOLATIONS FOR A STUDENT ==========
+        [HttpDelete("delete-violations/student/{studentId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteViolationsByStudent(int studentId)
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = "DELETE FROM ExamAttempts WHERE UserId = @StudentId AND ViolationType IS NOT NULL";
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@StudentId", studentId);
+                await conn.OpenAsync();
+                int rows = await cmd.ExecuteNonQueryAsync();
+
+                return Ok(new { success = true, deleted = rows, message = $"{rows} violation(s) deleted" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== DELETE VIOLATIONS BY EXAM ==========
+        [HttpDelete("delete-violations/exam/{examId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteViolationsByExam(int examId)
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = "DELETE FROM ExamAttempts WHERE ExamId = @ExamId AND ViolationType IS NOT NULL";
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@ExamId", examId);
+                await conn.OpenAsync();
+                int rows = await cmd.ExecuteNonQueryAsync();
+
+                return Ok(new { success = true, deleted = rows, message = $"{rows} violation(s) deleted" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== CLEAR ALL VIOLATIONS ==========
+        [HttpDelete("clear-all-violations")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ClearAllViolations()
+        {
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = "DELETE FROM ExamAttempts WHERE ViolationType IS NOT NULL";
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                await conn.OpenAsync();
+                int rows = await cmd.ExecuteNonQueryAsync();
+
+                return Ok(new { success = true, deleted = rows, message = $"Cleared {rows} violation(s)" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== GET VIOLATIONS BY STUDENT ==========
+        [HttpGet("violations/student/{studentId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetViolationsByStudent(int studentId)
+        {
+            try
+            {
+                var violations = new List<object>();
+
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                string sql = @"
+                    SELECT 
+                        ea.Id as attemptId,
+                        ea.UserId as studentId,
+                        u.FullName as studentName,
+                        u.Email as studentEmail,
+                        ea.ExamId,
+                        e.Title as examTitle,
+                        ea.ViolationType,
+                        ea.ViolationCount,
+                        ea.Timestamp,
+                        ea.RemainingWarnings
+                    FROM ExamAttempts ea
+                    LEFT JOIN Users u ON ea.UserId = u.Id
+                    LEFT JOIN Exams e ON ea.ExamId = e.Id
+                    WHERE ea.UserId = @StudentId AND ea.ViolationType IS NOT NULL
+                    ORDER BY ea.Timestamp DESC";
+
+                using SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@StudentId", studentId);
+                await conn.OpenAsync();
+
+                using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    violations.Add(new
+                    {
+                        attemptId = Convert.ToInt32(reader["attemptId"]),
+                        studentId = Convert.ToInt32(reader["studentId"]),
+                        studentName = reader["studentName"]?.ToString() ?? "Unknown",
+                        studentEmail = reader["studentEmail"]?.ToString() ?? "",
+                        examId = Convert.ToInt32(reader["ExamId"]),
+                        examTitle = reader["examTitle"]?.ToString() ?? "Unknown",
+                        violationType = reader["ViolationType"]?.ToString(),
+                        violationCount = reader["ViolationCount"] != DBNull.Value ? Convert.ToInt32(reader["ViolationCount"]) : 1,
+                        timestamp = reader["Timestamp"] != DBNull.Value ? Convert.ToDateTime(reader["Timestamp"]).ToString("o") : DateTime.Now.ToString("o"),
+                        remainingWarnings = reader["RemainingWarnings"] != DBNull.Value ? Convert.ToInt32(reader["RemainingWarnings"]) : 0
+                    });
+                }
+
+                return Ok(violations);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // ========== ORIGINAL METHODS (keep as they are) ==========
+
         [HttpPost("start")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> StartExam([FromBody] StartExamRequestDto request)
@@ -85,19 +380,15 @@ namespace OnlineExamPortal.API.Controllers
             return Ok(response);
         }
 
-        // POST: api/ExamAttempt/submit-answer
         [HttpPost("submit-answer")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitAnswer([FromBody] SubmitAnswerRequestDto request)
         {
             try
             {
-                Console.WriteLine($"SubmitAnswer: AttemptId={request.AttemptId}, QuestionId={request.QuestionId}, Option={request.SelectedOption}");
-
                 using SqlConnection conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                // Verify attempt exists
                 string checkAttemptSql = "SELECT Status FROM ExamAttempts WHERE Id = @AttemptId";
                 SqlCommand checkAttemptCmd = new SqlCommand(checkAttemptSql, conn);
                 checkAttemptCmd.Parameters.AddWithValue("@AttemptId", request.AttemptId);
@@ -108,7 +399,6 @@ namespace OnlineExamPortal.API.Controllers
                     return BadRequest(new { message = "Exam attempt not found or already submitted" });
                 }
 
-                // Get correct answer
                 string getCorrectSql = "SELECT CorrectAnswer FROM Questions WHERE Id = @QuestionId";
                 SqlCommand getCmd = new SqlCommand(getCorrectSql, conn);
                 getCmd.Parameters.AddWithValue("@QuestionId", request.QuestionId);
@@ -122,7 +412,6 @@ namespace OnlineExamPortal.API.Controllers
                 string correctAnswer = correctAnswerObj.ToString();
                 bool isCorrect = request.SelectedOption == correctAnswer;
 
-                // Insert or update answer
                 string upsertSql = @"
                     IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
                         UPDATE Answers SET SelectedOption = @SelectedOption, IsCorrect = @IsCorrect
@@ -150,12 +439,10 @@ namespace OnlineExamPortal.API.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SubmitAnswer Error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }
 
-        // POST: api/ExamAttempt/submit/{attemptId}
         [HttpPost("submit/{attemptId}")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitExam(int attemptId)
@@ -210,7 +497,6 @@ namespace OnlineExamPortal.API.Controllers
                         isPassed = reader["IsPassed"] != DBNull.Value ? Convert.ToBoolean(reader["IsPassed"]) : false;
                     }
 
-                    // Send email to student
                     try
                     {
                         var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
@@ -221,7 +507,6 @@ namespace OnlineExamPortal.API.Controllers
 
                             if (student != null && exam != null && !string.IsNullOrEmpty(student.Email))
                             {
-                                // Send email in background
                                 _ = Task.Run(async () =>
                                 {
                                     try
@@ -232,10 +517,9 @@ namespace OnlineExamPortal.API.Controllers
                                             exam.Title,
                                             totalScore,
                                             totalMarks,
-                                            percentage,
+                                            (double)percentage,
                                             isPassed
                                         );
-                                        Console.WriteLine($"Email sent to {student.Email}");
                                     }
                                     catch (Exception ex)
                                     {
@@ -262,12 +546,10 @@ namespace OnlineExamPortal.API.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SubmitExam error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }
 
-        // GET: api/ExamAttempt/check/{studentId}/{examId}
         [HttpGet("check/{studentId}/{examId}")]
         [Authorize]
         public async Task<IActionResult> CheckExamAttempted(int studentId, int examId)
@@ -276,7 +558,6 @@ namespace OnlineExamPortal.API.Controllers
             return Ok(new { attempted = hasAttempted });
         }
 
-        // GET: api/ExamAttempt/all
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllAttempts()
@@ -332,14 +613,26 @@ namespace OnlineExamPortal.API.Controllers
                     });
                 }
 
-                Console.WriteLine($"GetAllAttempts: Found {attempts.Count} attempts");
                 return Ok(attempts);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GetAllAttempts Error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }
+    }
+
+    // Request DTO for logging violations
+    public class ViolationRequestDto
+    {
+        public int AttemptId { get; set; }
+        public int StudentId { get; set; }
+        public string StudentName { get; set; } = string.Empty;
+        public string StudentEmail { get; set; } = string.Empty;
+        public int ExamId { get; set; }
+        public string ExamTitle { get; set; } = string.Empty;
+        public string ViolationType { get; set; } = string.Empty;
+        public int ViolationCount { get; set; }
+        public int RemainingWarnings { get; set; }
     }
 }
