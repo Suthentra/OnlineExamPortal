@@ -59,6 +59,16 @@
   },
   {
     "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
+    "Method": "GetAllViolations",
+    "RelativePath": "api/ExamAttempt/all-violations",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
     "Method": "CheckExamAttempted",
     "RelativePath": "api/ExamAttempt/check/{studentId}/{examId}",
     "HttpMethod": "GET",
@@ -73,6 +83,22 @@
       {
         "Name": "examId",
         "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
+    "Method": "LogViolation",
+    "RelativePath": "api/ExamAttempt/log-violation",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "OnlineExamPortal.API.Controllers.ViolationRequestDto",
         "IsRequired": true
       }
     ],
@@ -120,6 +146,22 @@
     "Parameters": [
       {
         "Name": "attemptId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OnlineExamPortal.API.Controllers.ExamAttemptController",
+    "Method": "GetViolationsByStudent",
+    "RelativePath": "api/ExamAttempt/violations/student/{studentId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "studentId",
         "Type": "System.Int32",
         "IsRequired": true
       }
@@ -457,7 +499,7 @@
     "Parameters": [
       {
         "Name": "dto",
-        "Type": "OnlineExamPortal.API.Models.DTOs.User.CreateUserRequestDto",
+        "Type": "OnlineExamPortal.API.Controllers.CreateUserRequestDto",
         "IsRequired": true
       }
     ],
@@ -494,7 +536,7 @@
       },
       {
         "Name": "dto",
-        "Type": "OnlineExamPortal.API.Models.DTOs.User.UpdateUserRequestDto",
+        "Type": "OnlineExamPortal.API.Controllers.UpdateUserRequestDto",
         "IsRequired": true
       }
     ],

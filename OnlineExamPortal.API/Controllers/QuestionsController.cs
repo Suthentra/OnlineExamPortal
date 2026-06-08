@@ -109,6 +109,7 @@ namespace OnlineExamPortal.API.Controllers
             await _questionRepository.UpdateAsync(existingQuestion);
             return Ok(new { message = "Question updated successfully" });
         }
+
         // DELETE: api/Questions/{id} - Admin only
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]

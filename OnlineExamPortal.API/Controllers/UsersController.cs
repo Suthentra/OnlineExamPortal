@@ -11,22 +11,21 @@ namespace OnlineExamPortal.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]  // ✅ All endpoints require authentication
+    [Authorize]  
     public class UsersController : ControllerBase
     {
-        private readonly IUserRepository userRepository;
+        private readonly IUserRepository _userRepository;  
 
         public UsersController(IUserRepository userRepository)
         {
-            this.userRepository = userRepository;
+            _userRepository = userRepository;  
         }
 
-        // GET: api/Users - Only Admin can see all users
         [HttpGet]
-        [Authorize(Roles = "Admin")]  // ✅ Only Admin
+        [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> GetAll()
         {
-            var users = await userRepository.GetAllAsync();
+            var users = await _userRepository.GetAllAsync();  // ✅ Fixed: underscore
             // Don't send password hash
             var result = users.Select(u => new {
                 u.Id,
@@ -37,33 +36,8 @@ namespace OnlineExamPortal.API.Controllers
             });
             return Ok(result);
         }
-        [HttpPost("change-password")]
-        [Authorize]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
-        {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var user = await _userRepository.GetByIdAsync(userId);
 
-            if (user == null)
-                return NotFound(new { message = "User not found" });
 
-            if (user.PasswordHash != request.CurrentPassword)
-            {
-                return BadRequest(new { message = "Current password is incorrect" });
-            }
-
-            user.PasswordHash = request.NewPassword;
-            await _userRepository.UpdateAsync(user);
-
-            return Ok(new { message = "Password changed successfully" });
-        }
-
-        public class ChangePasswordRequestDto
-        {
-            public string CurrentPassword { get; set; }
-            public string NewPassword { get; set; }
-        }
-        // GET: api/Users/{id} - Users can see their own profile, Admin can see any
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -74,7 +48,7 @@ namespace OnlineExamPortal.API.Controllers
             if (currentUserId != id && currentUserRole != "Admin")
                 return Forbid();  // ✅ 403 Forbidden
 
-            var user = await userRepository.GetByIdAsync(id);
+            var user = await _userRepository.GetByIdAsync(id);  // ✅ Fixed: underscore
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
@@ -88,11 +62,15 @@ namespace OnlineExamPortal.API.Controllers
             });
         }
 
-        // POST: api/Users - Only Admin can create users
         [HttpPost]
-        [Authorize(Roles = "Admin")]  // ✅ Only Admin
+        [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> Create([FromBody] CreateUserRequestDto dto)
         {
+            // Check if email already exists
+            var existingUser = await _userRepository.GetByEmailAsync(dto.Email);
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already registered" });
+
             var user = new User
             {
                 FullName = dto.FullName,
@@ -102,11 +80,11 @@ namespace OnlineExamPortal.API.Controllers
                 CreatedAt = DateTime.Now
             };
 
-            await userRepository.CreateAsync(user);
+            await _userRepository.CreateAsync(user);  // ✅ Fixed: underscore
             return Ok(new { message = "User created successfully", userId = user.Id });
         }
 
-        // PUT: api/Users/{id} - Users can update themselves, Admin can update any
+
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequestDto dto)
         {
@@ -117,7 +95,7 @@ namespace OnlineExamPortal.API.Controllers
             if (currentUserId != id && currentUserRole != "Admin")
                 return Forbid();
 
-            var existingUser = await userRepository.GetByIdAsync(id);
+            var existingUser = await _userRepository.GetByIdAsync(id);  // ✅ Fixed: underscore
             if (existingUser == null)
                 return NotFound(new { message = "User not found" });
 
@@ -128,21 +106,35 @@ namespace OnlineExamPortal.API.Controllers
             if (currentUserRole == "Admin")
                 existingUser.UserRole = dto.UserRole;
 
-            await userRepository.UpdateAsync(existingUser);
+            await _userRepository.UpdateAsync(existingUser);  // ✅ Fixed: underscore
             return Ok(new { message = "User updated successfully" });
         }
 
-        // DELETE: api/Users/{id} - Only Admin can delete
+  
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var exists = await userRepository.ExistsAsync(id);
+            var exists = await _userRepository.ExistsAsync(id);  // ✅ Fixed: underscore
             if (!exists)
                 return NotFound(new { message = "User not found" });
 
-            await userRepository.DeleteAsync(id);
+            await _userRepository.DeleteAsync(id);  // ✅ Fixed: underscore
             return Ok(new { message = "User deleted successfully" });
         }
+    }
+
+    public class CreateUserRequestDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string UserRole { get; set; } = "Student";
+    }
+    public class UpdateUserRequestDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string UserRole { get; set; } = "Student";
     }
 }

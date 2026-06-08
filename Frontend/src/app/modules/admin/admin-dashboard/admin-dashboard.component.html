@@ -234,15 +234,15 @@
       
       <!-- Exams List Modal -->
       <div *ngIf="modalType === 'exams'">
-        <table class="modal-table"><thead><tr><th>ID</th><th>Exam Name</th><th>Status</th><th>Questions</th></tr></thead>
-        <tbody><tr *ngFor="let exam of modalData"><td>{{ exam.id }}</td><td><strong>{{ exam.title }}</strong></td><td>{{ exam.status }}</td><td>{{ exam.questions }}</td></tr></tbody>
+        <table class="modal-table"><thead><tr><th>ID</th><th>Exam Name</th><th>Status</th></tr></thead>
+        <tbody><tr *ngFor="let exam of modalData"><td>{{ exam.id }}</td><td><strong>{{ exam.title }}</strong></td><td>{{ exam.status }}</td></tr></tbody>
         </table>
       </div>
 
       <!-- Students List Modal -->
       <div *ngIf="modalType === 'students'">
-        <table class="modal-table"><thead><tr><th>Name</th><th>Email</th><th>Registered On</th><th>Attempts</th><th>Avg Score</th><th>Action</th></tr></thead>
-        <tbody><tr *ngFor="let student of modalData"><td><strong>{{ student.name }}</strong></td><td>{{ student.email }}</td><td>{{ student.registeredOn }}</td><td>{{ student.attemptsCount }}</td><td>{{ student.avgScore }}%</td><td><button class="btn-view" (click)="viewStudentDetails(student.id)">View</button></td></tr></tbody>
+        <table class="modal-table"><thead><tr><th>Name</th><th>Email</th><th>Registered On</th><th>Attempts</th></thead>
+        <tbody><tr *ngFor="let student of modalData"><td><strong>{{ student.name }}</strong></td><td>{{ student.email }}</td><td>{{ student.registeredOn }}</td><td>{{ student.attemptsCount }}</td></tr></tbody>
         </table>
       </div>
 

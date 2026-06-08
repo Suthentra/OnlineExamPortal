@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
-import { DarkModeService } from '../../../shared/services/dark-mode.service';
 
 interface Violation {
   attemptId: number;
@@ -69,19 +68,12 @@ export class AdminDashboardComponent implements OnInit {
     private auth: AuthService,
     private api: ApiService,
     private router: Router,
-    private darkModeService: DarkModeService
   ) {}
 
   ngOnInit() {
     this.user = this.auth.getUser();
-    this.isDarkMode = this.darkModeService.isDarkMode;
     this.loadDashboardData();
     this.loadViolations();
-  }
-
-  toggleDarkMode() {
-    this.darkModeService.toggleDarkMode();
-    this.isDarkMode = this.darkModeService.isDarkMode;
   }
 
   logout() { 

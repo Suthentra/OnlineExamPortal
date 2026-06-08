@@ -18,7 +18,7 @@ namespace OnlineExamPortal.API.Models.Domain
 
         // Add this property
         public ICollection<Section> Sections { get; set; } = new List<Section>();
-
+        
         // Navigation Properties
         public User User { get; set; }
         public ICollection<Question> Questions { get; set; } = new List<Question>();

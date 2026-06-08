@@ -50,8 +50,6 @@ namespace OnlineExamPortal.API.Controllers
         // POST: api/Exams
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        [HttpPost]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateExam([FromBody] CreateExamRequestDto request)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -77,6 +75,7 @@ namespace OnlineExamPortal.API.Controllers
 
             return CreatedAtAction(nameof(GetExamById), new { id = exam.Id }, exam);
         }
+
         // PUT: api/Exams/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]

@@ -11,7 +11,6 @@ import { AddQuestionsComponent } from './modules/admin/add-questions/add-questio
 import { EditExamComponent } from './modules/admin/edit-exam/edit-exam.component';
 import { ExamResultsComponent } from './modules/admin/exam-results/exam-results.component';
 import { StudentPerformanceComponent } from './modules/admin/student-performance/student-performance.component';
-import { ChangePasswordComponent } from './modules/student/change-password/change-password.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -27,7 +26,6 @@ const routes: Routes = [
   { path: 'admin/edit-exam/:id', component: EditExamComponent },
   { path: 'admin/exam-results/:id', component: ExamResultsComponent },
   { path: 'admin/student-performance/:id', component: StudentPerformanceComponent },
-  { path: 'change-password', component: ChangePasswordComponent,},
 ];
 
 @NgModule({

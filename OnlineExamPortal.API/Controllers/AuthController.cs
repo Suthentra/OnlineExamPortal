@@ -57,7 +57,6 @@ namespace OnlineExamPortal.API.Controllers
             });
         }
 
-        // Email validation helper method
         private bool IsValidEmail(string email)
         {
             try

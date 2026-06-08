@@ -8,7 +8,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
     public class SQLExamRepository : IExamRepository
     {
         private readonly IConfiguration configuration;
-        private readonly string connectionString;  // ← ADD THIS at class level
+        private readonly string connectionString;  
 
         public SQLExamRepository(IConfiguration configuration)
         {
@@ -45,7 +45,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                     IsPublished = (bool)reader["IsPublished"],
                     CreatedAt = (DateTime)reader["CreatedAt"],
                     UserId = (int)reader["UserId"],
-                    TotalQuestions = reader["TotalQuestions"] != DBNull.Value ? (int)reader["TotalQuestions"] : 0
+                    
                 });
             }
 

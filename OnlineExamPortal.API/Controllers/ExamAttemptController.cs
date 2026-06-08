@@ -35,7 +35,6 @@ namespace OnlineExamPortal.API.Controllers
             _emailService = emailService;
         }
 
-        // ========== GET ALL VIOLATIONS ==========
         [HttpGet("all-violations")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllViolations()
@@ -165,115 +164,7 @@ namespace OnlineExamPortal.API.Controllers
                 return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
-
-        // ========== DELETE SINGLE VIOLATION ==========
-        [HttpDelete("delete-violation/{attemptId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteViolation(int attemptId)
-        {
-            try
-            {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                await conn.OpenAsync();
-
-                // Check if violation exists
-                string checkSql = "SELECT Id FROM ExamAttempts WHERE Id = @AttemptId AND ViolationType IS NOT NULL";
-                using SqlCommand checkCmd = new SqlCommand(checkSql, conn);
-                checkCmd.Parameters.AddWithValue("@AttemptId", attemptId);
-                var exists = await checkCmd.ExecuteScalarAsync();
-
-                if (exists == null)
-                {
-                    return NotFound(new { success = false, message = "Violation not found" });
-                }
-
-                // Delete the violation
-                string deleteSql = "DELETE FROM ExamAttempts WHERE Id = @AttemptId";
-                using SqlCommand deleteCmd = new SqlCommand(deleteSql, conn);
-                deleteCmd.Parameters.AddWithValue("@AttemptId", attemptId);
-                int rows = await deleteCmd.ExecuteNonQueryAsync();
-
-                if (rows > 0)
-                {
-                    return Ok(new { success = true, message = "Violation deleted successfully" });
-                }
-                else
-                {
-                    return BadRequest(new { success = false, message = "Failed to delete violation" });
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, error = ex.Message });
-            }
-        }
-
-        // ========== DELETE ALL VIOLATIONS FOR A STUDENT ==========
-        [HttpDelete("delete-violations/student/{studentId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteViolationsByStudent(int studentId)
-        {
-            try
-            {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                string sql = "DELETE FROM ExamAttempts WHERE UserId = @StudentId AND ViolationType IS NOT NULL";
-                using SqlCommand cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@StudentId", studentId);
-                await conn.OpenAsync();
-                int rows = await cmd.ExecuteNonQueryAsync();
-
-                return Ok(new { success = true, deleted = rows, message = $"{rows} violation(s) deleted" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, error = ex.Message });
-            }
-        }
-
-        // ========== DELETE VIOLATIONS BY EXAM ==========
-        [HttpDelete("delete-violations/exam/{examId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteViolationsByExam(int examId)
-        {
-            try
-            {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                string sql = "DELETE FROM ExamAttempts WHERE ExamId = @ExamId AND ViolationType IS NOT NULL";
-                using SqlCommand cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@ExamId", examId);
-                await conn.OpenAsync();
-                int rows = await cmd.ExecuteNonQueryAsync();
-
-                return Ok(new { success = true, deleted = rows, message = $"{rows} violation(s) deleted" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, error = ex.Message });
-            }
-        }
-
-        // ========== CLEAR ALL VIOLATIONS ==========
-        [HttpDelete("clear-all-violations")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ClearAllViolations()
-        {
-            try
-            {
-                using SqlConnection conn = new SqlConnection(_connectionString);
-                string sql = "DELETE FROM ExamAttempts WHERE ViolationType IS NOT NULL";
-                using SqlCommand cmd = new SqlCommand(sql, conn);
-                await conn.OpenAsync();
-                int rows = await cmd.ExecuteNonQueryAsync();
-
-                return Ok(new { success = true, deleted = rows, message = $"Cleared {rows} violation(s)" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, error = ex.Message });
-            }
-        }
-
-        // ========== GET VIOLATIONS BY STUDENT ==========
+               
         [HttpGet("violations/student/{studentId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetViolationsByStudent(int studentId)
@@ -330,8 +221,6 @@ namespace OnlineExamPortal.API.Controllers
                 return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
-
-        // ========== ORIGINAL METHODS (keep as they are) ==========
 
         [HttpPost("start")]
         [Authorize(Roles = "Student")]
@@ -517,7 +406,7 @@ namespace OnlineExamPortal.API.Controllers
                                             exam.Title,
                                             totalScore,
                                             totalMarks,
-                                            (double)percentage,
+                                            percentage,
                                             isPassed
                                         );
                                     }

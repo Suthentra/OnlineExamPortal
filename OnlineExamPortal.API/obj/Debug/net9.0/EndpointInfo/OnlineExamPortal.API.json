@@ -89,6 +89,72 @@
         }
       }
     },
+    "/api/ExamAttempt/all-violations": {
+      "get": {
+        "tags": [
+          "ExamAttempt"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ExamAttempt/log-violation": {
+      "post": {
+        "tags": [
+          "ExamAttempt"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViolationRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViolationRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViolationRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ExamAttempt/violations/student/{studentId}": {
+      "get": {
+        "tags": [
+          "ExamAttempt"
+        ],
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/ExamAttempt/start": {
       "post": {
         "tags": [
@@ -1093,6 +1159,48 @@
           "userRole": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ViolationRequestDto": {
+        "type": "object",
+        "properties": {
+          "attemptId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studentId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studentName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studentEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "examId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "examTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "violationType": {
+            "type": "string",
+            "nullable": true
+          },
+          "violationCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "remainingWarnings": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
