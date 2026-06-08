@@ -3,7 +3,7 @@
 *.vsidx
 *.suo
 *.user
-
+appsettings.json
 # Backend
 API/bin/
 API/obj/
