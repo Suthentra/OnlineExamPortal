@@ -97,10 +97,18 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     this.router.navigate([], { fragment: tab, replaceUrl: true });
   }
 
-
-  logout() { 
-    this.toast.info('Logging out...');
-    this.auth.logout(); 
+  // ===== LOGOUT WITH CONFIRMATION =====
+  
+  async logout() {
+    const confirmed = await this.toast.confirm(
+      'Are you sure you want to logout?<br><br>You will need to login again to access the admin dashboard.',
+      'Logout Confirmation'
+    );
+    
+    if (confirmed) {
+      this.toast.info('Logging out...');
+      this.auth.logout();
+    }
   }
 
   loadDashboardData() {
