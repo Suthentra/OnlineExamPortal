@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../shared/services/api.service';
 import { AuthService } from '../../../shared/services/auth.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-edit-exam',
@@ -28,7 +29,8 @@ export class EditExamComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private api: ApiService,
-    private auth: AuthService
+    private auth: AuthService,
+    private toast: ToastService
   ) {
     this.examId = Number(this.route.snapshot.paramMap.get('id'));
   }
@@ -40,7 +42,6 @@ export class EditExamComponent implements OnInit {
   loadExam() {
     this.api.getExamById(this.examId).subscribe({
       next: (data: any) => {
-        console.log('Loaded exam:', data);
         this.exam = {
           title: data.title,
           description: data.description,
@@ -57,43 +58,46 @@ export class EditExamComponent implements OnInit {
         this.message = 'Failed to load exam';
         this.isError = true;
         this.loading = false;
+        this.toast.error('Failed to load exam');
       }
     });
   }
 
   onSubmit() {
-    // Validate required fields
+    this.message = '';
+    this.isError = false;
+
     if (!this.exam.title) {
       this.message = 'Exam title is required';
       this.isError = true;
+      this.toast.warning('Exam title is required');
       return;
     }
 
-    console.log('Updating exam ID:', this.examId);
-    console.log('Update data:', this.exam);
-    
     this.loading = true;
-    this.message = '';
     
     this.api.updateExam(this.examId, this.exam).subscribe({
       next: (response: any) => {
-        console.log('Update response:', response);
         this.message = 'Exam updated successfully!';
         this.isError = false;
         this.loading = false;
-        setTimeout(() => this.router.navigate(['/admin']), 2000);
+        this.toast.success('Exam updated successfully!');
+        setTimeout(() => {
+          this.router.navigate(['/admin'], { fragment: 'exams' });
+        }, 2000);
       },
       error: (err: any) => {
-        console.error('Full error:', err);
+        console.error('Update error:', err);
         this.message = err.error?.message || 'Failed to update exam';
         this.isError = true;
         this.loading = false;
+        this.toast.error(this.message);
       }
     });
   }
 
   goBack() {
-    this.router.navigate(['/admin']);
+    this.router.navigate(['/admin'], { fragment: 'exams' });
   }
 
   logout() {

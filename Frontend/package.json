@@ -22,6 +22,7 @@
   },
   "private": true,
   "dependencies": {
+    "@angular/animations": "^20.2.0",
     "@angular/common": "^20.2.0",
     "@angular/compiler": "^20.2.0",
     "@angular/core": "^20.2.0",
@@ -31,8 +32,10 @@
     "bootstrap": "^5.3.8",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
+    "ngx-toastr": "^18.0.0",
     "papaparse": "^5.5.3",
     "rxjs": "~7.8.0",
+    "sweetalert2": "^11.26.25",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },

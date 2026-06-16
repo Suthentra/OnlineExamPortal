@@ -40,24 +40,65 @@ namespace OnlineExamPortal.API.Repositories.Implementation
             return await GetAttemptByIdAsync(attemptId);
         }
 
-        public async Task<Answer> SubmitAnswerAsync(int attemptId, int questionId, string selectedOption)
+        public async Task<Answer> SubmitAnswerAsync(int attemptId, int questionId, List<int> selectedOptionIds)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_SubmitAnswer", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
 
-            cmd.Parameters.AddWithValue("@AttemptId", attemptId);
-            cmd.Parameters.AddWithValue("@QuestionId", questionId);
-            cmd.Parameters.AddWithValue("@SelectedOption", selectedOption);
+            // Convert List<int> to comma-separated string for storage
+            string selectedOptionIdsStr = selectedOptionIds != null && selectedOptionIds.Any()
+                ? string.Join(",", selectedOptionIds)
+                : "";
+
+            // Determine if the answer is correct
+            string checkCorrectSql = @"
+        DECLARE @CorrectOptionIds VARCHAR(200);
+        DECLARE @SelectedOptionIds VARCHAR(200) = @SelectedIds;
+        
+        -- Get all correct option IDs for this question
+        SELECT @CorrectOptionIds = STRING_AGG(CAST(Id AS VARCHAR), ',')
+        FROM Options 
+        WHERE QuestionId = @QuestionId AND IsCorrect = 1;
+        
+        -- Compare: both strings should have the same numbers
+        SELECT CASE 
+            WHEN @CorrectOptionIds IS NULL THEN 0
+            WHEN @CorrectOptionIds = @SelectedOptionIds THEN 1
+            ELSE 0 
+        END AS IsCorrect";
+
+            using SqlCommand checkCmd = new SqlCommand(checkCorrectSql, conn);
+            checkCmd.Parameters.AddWithValue("@QuestionId", questionId);
+            checkCmd.Parameters.AddWithValue("@SelectedIds", selectedOptionIdsStr);
 
             await conn.OpenAsync();
+            bool isCorrect = Convert.ToBoolean(await checkCmd.ExecuteScalarAsync() ?? false);
+
+            // Save or update the answer
+            string sql = @"
+        IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
+            UPDATE Answers 
+            SET SelectedOptionIds = @SelectedOptionIds, 
+                IsCorrect = @IsCorrect,
+                UpdatedAt = GETDATE()
+            WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
+        ELSE
+            INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOptionIds, IsCorrect, CreatedAt)
+            VALUES (@AttemptId, @QuestionId, @SelectedOptionIds, @IsCorrect, GETDATE())";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@AttemptId", attemptId);
+            cmd.Parameters.AddWithValue("@QuestionId", questionId);
+            cmd.Parameters.AddWithValue("@SelectedOptionIds", selectedOptionIdsStr);
+            cmd.Parameters.AddWithValue("@IsCorrect", isCorrect);
+
             await cmd.ExecuteNonQueryAsync();
 
             return new Answer
             {
                 ExamAttemptId = attemptId,
                 QuestionId = questionId,
-                SelectedOption = selectedOption
+                SelectedOptionIds = selectedOptionIdsStr,
+                IsCorrect = isCorrect
             };
         }
         public async Task<ExamAttempt> SubmitExamAsync(int attemptId)

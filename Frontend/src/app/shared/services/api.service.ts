@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from './auth.service';
-
+import { catchError } from 'rxjs/operators';
 @Injectable({
   providedIn: 'root'
 })
@@ -133,11 +133,16 @@ export class ApiService {
 
   // ============ QUESTION APIs ============
   getQuestionsByExam(examId: number) {
-    const token = this.auth.getToken();
-    return this.http.get(`${this.apiUrl}/Questions/exam/${examId}`, {
-      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
-    });
-  }
+  const token = this.auth.getToken();
+  // Add cache: 'no-cache' header to prevent caching
+  return this.http.get(`${this.apiUrl}/Questions/exam/${examId}`, {
+    headers: new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    })
+  });
+}
 
   getQuestionById(id: number) {
     const token = this.auth.getToken();
@@ -198,33 +203,40 @@ export class ApiService {
     });
   }
 
-  addFromBankToExam(examId: number, questionIds: number[]) {
-    const token = this.auth.getToken();
-    return this.http.post(`${this.apiUrl}/QuestionBank/add-to-exam/${examId}`, questionIds, {
-      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
-    });
-  }
+ addFromBankToExam(examId: number, questionIds: number[]) {
+  const token = this.auth.getToken();
+  console.log('Sending request to add questions:', { examId, questionIds });
+  return this.http.post(`${this.apiUrl}/QuestionBank/add-to-exam/${examId}`, questionIds, {
+    headers: new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    })
+  });
+}
 
   // ============ EXAM ATTEMPT APIs ============
   startExam(data: any) {
-    const token = this.auth.getToken();
-    return this.http.post(`${this.apiUrl}/ExamAttempt/start`, data, {
-      headers: new HttpHeaders({
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      })
-    });
-  }
+  const token = this.auth.getToken();
+  console.log('Sending start exam request:', data);
+  return this.http.post(`${this.apiUrl}/ExamAttempt/start`, data, {
+    headers: new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    })
+  });
+}
 
   submitAnswer(data: any) {
-    const token = this.auth.getToken();
-    return this.http.post(`${this.apiUrl}/ExamAttempt/submit-answer`, data, {
-      headers: new HttpHeaders({
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      })
-    });
-  }
+  const token = this.auth.getToken();
+  console.log('========== API CALL: submitAnswer ==========');
+  console.log('Sending data:', data);
+  return this.http.post(`${this.apiUrl}/ExamAttempt/submit-answer`, data, {
+    headers: new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    })
+  });
+}
 
   submitExam(attemptId: number) {
     const token = this.auth.getToken();

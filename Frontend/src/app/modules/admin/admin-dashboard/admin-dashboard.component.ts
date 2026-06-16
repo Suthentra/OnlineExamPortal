@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 interface Violation {
   attemptId: number;
@@ -39,14 +40,13 @@ interface StudentViolation {
   styleUrls: ['./admin-dashboard.component.css'],
   standalone: false
 })
-export class AdminDashboardComponent implements OnInit {
+export class AdminDashboardComponent implements OnInit, AfterViewInit {
   user: any;
   exams: any[] = [];
   students: any[] = [];
   attempts: any[] = [];
   loading = true;
   activeTab: string = 'dashboard';
-  isDarkMode: boolean = false;
 
   violations: Violation[] = [];
   filteredViolations: Violation[] = [];
@@ -68,6 +68,8 @@ export class AdminDashboardComponent implements OnInit {
     private auth: AuthService,
     private api: ApiService,
     private router: Router,
+    private route: ActivatedRoute,
+    private toast: ToastService
   ) {}
 
   ngOnInit() {
@@ -76,7 +78,28 @@ export class AdminDashboardComponent implements OnInit {
     this.loadViolations();
   }
 
+  ngAfterViewInit() {
+    this.route.fragment.subscribe(fragment => {
+      if (fragment === 'exams') {
+        this.activeTab = 'exams';
+      } else if (fragment === 'results') {
+        this.activeTab = 'results';
+      } else if (fragment === 'violations') {
+        this.activeTab = 'violations';
+      } else if (fragment === 'dashboard') {
+        this.activeTab = 'dashboard';
+      }
+    });
+  }
+
+  setActiveTab(tab: string) {
+    this.activeTab = tab;
+    this.router.navigate([], { fragment: tab, replaceUrl: true });
+  }
+
+
   logout() { 
+    this.toast.info('Logging out...');
     this.auth.logout(); 
   }
 
@@ -91,9 +114,12 @@ export class AdminDashboardComponent implements OnInit {
       next: (data: any) => { 
         this.exams = data; 
         this.totalExams = data.length; 
-        this.loading = false; 
+        this.loading = false;
+        this.toast.success(`Loaded ${data.length} exams`);
       },
-      error: () => { 
+      error: (err) => { 
+        console.error('Error loading exams:', err);
+        this.toast.error('Failed to load exams');
         this.loading = false; 
       }
     });
@@ -103,9 +129,13 @@ export class AdminDashboardComponent implements OnInit {
     this.api.getAllUsers().subscribe({
       next: (data: any) => { 
         this.students = data.filter((u: any) => u.userRole === 'Student'); 
-        this.totalStudents = this.students.length; 
+        this.totalStudents = this.students.length;
+        this.toast.success(`Loaded ${this.students.length} students`);
       },
-      error: (err: any) => console.error('Error loading students:', err)
+      error: (err: any) => {
+        console.error('Error loading students:', err);
+        this.toast.error('Failed to load students');
+      }
     });
   }
 
@@ -116,24 +146,30 @@ export class AdminDashboardComponent implements OnInit {
         this.totalAttempts = this.attempts.length;
         const totalScore = this.attempts.reduce((sum: number, a: any) => sum + (a.percentage || 0), 0);
         this.averageScore = this.attempts.length ? Math.round(totalScore / this.attempts.length) : 0;
+        this.toast.success(`Loaded ${this.totalAttempts} attempts`);
       },
-      error: (err: any) => console.error('Error loading attempts:', err)
+      error: (err: any) => {
+        console.error('Error loading attempts:', err);
+        this.toast.error('Failed to load attempts');
+      }
     });
   }
 
   loadViolations() {
     this.loadingViolations = true;
     
-    // Load from localStorage only
     const localViolations = JSON.parse(localStorage.getItem('violations') || '[]');
-    console.log('Violations from localStorage:', localViolations);
     
     this.violations = localViolations;
     this.filteredViolations = localViolations;
     this.loadingViolations = false;
-}
-
-// Remove API calls - use localStorage only
+    
+    if (localViolations.length === 0) {
+      this.toast.info('No violations found');
+    } else {
+      this.toast.info(`Loaded ${localViolations.length} violations`);
+    }
+  }
 
   filterViolations() {
     if (!this.searchTerm) {
@@ -150,9 +186,8 @@ export class AdminDashboardComponent implements OnInit {
   clearSearch() {
     this.searchTerm = '';
     this.filteredViolations = this.violations;
+    this.toast.info('Search cleared');
   }
-
-  // ========== GROUPED VIOLATIONS METHODS ==========
 
   getGroupedViolations(): StudentViolation[] {
     const studentMap = new Map<number, StudentViolation>();
@@ -238,143 +273,58 @@ export class AdminDashboardComponent implements OnInit {
       violations: this.filteredViolations.filter(v => v.studentId === student.studentId)
     };
     this.showModal = true;
+    this.toast.info(`Viewing violations for ${student.studentName}`);
   }
 
-// Send notification to student (store in localStorage for now)
-notifyStudent(student: StudentViolation) {
-    const message = `⚠️ Academic Integrity Warning ⚠️\n\nDear ${student.studentName},\n\nYou have received ${student.totalViolations} violation(s) across ${student.examsAffected} exam(s).\n\nViolations detected:\n${this.getViolationBreakdown(student)}\n\nPlease ensure you follow exam rules:\n• Stay in fullscreen mode\n• Do not switch tabs\n• Do not click outside the exam window\n\nRepeated violations may lead to automatic exam submission.\n\nRegards,\nExam Portal Admin`;
+  async notifyStudent(student: StudentViolation) {
+    const confirmed = await this.toast.confirm(
+      `Send warning notification to ${student.studentName}?\n\n` +
+      `Violations: ${student.totalViolations}\n` +
+      `Exams Affected: ${student.examsAffected}`,
+      'Send Warning'
+    );
     
-    if (confirm(`Send warning notification to ${student.studentName}?\n\nViolations: ${student.totalViolations}\nExams: ${student.examsAffected}`)) {
-        
-        // Store notification in localStorage for student to see
-        const notification = {
-            id: Date.now(),
-            studentId: student.studentId,
-            studentName: student.studentName,
-            message: message,
-            type: 'warning',
-            read: false,
-            timestamp: new Date().toISOString(),
-            violations: student.totalViolations
-        };
-        
-        // Get existing notifications
-        let notifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
-        notifications.push(notification);
-        localStorage.setItem('student_notifications', JSON.stringify(notifications));
-        
-        // Also store in student's specific notification area
-        let studentNotifications = JSON.parse(localStorage.getItem(`notifications_${student.studentId}`) || '[]');
-        studentNotifications.push(notification);
-        localStorage.setItem(`notifications_${student.studentId}`, JSON.stringify(studentNotifications));
-        
-        alert(`✅ Warning notification sent to ${student.studentName}!\n\nThey will see it when they log in.`);
-        
-        // Optional: Play sound effect
-        this.playNotificationSound();
+    if (confirmed) {
+      const notification = {
+        id: Date.now(),
+        studentId: student.studentId,
+        studentName: student.studentName,
+        message: `⚠️ Academic Integrity Warning ⚠️\n\nDear ${student.studentName},\n\nYou have received ${student.totalViolations} violation(s) across ${student.examsAffected} exam(s).\n\nPlease ensure you follow exam rules:\n• Stay in fullscreen mode\n• Do not switch tabs\n• Do not click outside the exam window\n\nRepeated violations may lead to automatic exam submission.\n\nRegards,\nExam Portal Admin`,
+        type: 'warning',
+        read: false,
+        timestamp: new Date().toISOString(),
+        violations: student.totalViolations
+      };
+      
+      let notifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
+      notifications.push(notification);
+      localStorage.setItem('student_notifications', JSON.stringify(notifications));
+      
+      let studentNotifications = JSON.parse(localStorage.getItem(`notifications_${student.studentId}`) || '[]');
+      studentNotifications.push(notification);
+      localStorage.setItem(`notifications_${student.studentId}`, JSON.stringify(studentNotifications));
+      
+      this.toast.success(`Warning notification sent to ${student.studentName}`);
+      this.playNotificationSound();
     }
-}
+  }
 
-// Play sound effect for notification
-playNotificationSound() {
-    const audio = new Audio();
-    // Simple beep using Web Audio API
+  playNotificationSound() {
     try {
-        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.frequency.value = 800;
-        gain.gain.value = 0.3;
-        oscillator.start();
-        gain.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.5);
-        oscillator.stop(context.currentTime + 0.5);
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.frequency.value = 800;
+      gain.gain.value = 0.3;
+      oscillator.start();
+      gain.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.5);
+      oscillator.stop(context.currentTime + 0.5);
     } catch(e) {
-        console.log('Sound not supported');
-    }
-}
-
-  // ========== DELETE VIOLATION METHODS ==========
-
-  deleteStudentViolations(student: StudentViolation) {
-    if (confirm(`⚠️ Are you sure you want to delete ALL violations for ${student.studentName}?\n\nThis action cannot be undone!`)) {
-      this.api.deleteViolationsByStudent(student.studentId).subscribe({
-        next: () => {
-          alert(`✅ All violations for ${student.studentName} have been deleted.`);
-          this.loadViolations();
-        },
-        error: (err) => {
-          console.error('Delete failed:', err);
-          alert('❌ Failed to delete violations. Please try again.');
-        }
-      });
+      console.log('Sound not supported');
     }
   }
-
-  deleteViolationType(studentId: number, examId: number, violationType: string) {
-    if (confirm(`⚠️ Delete ${this.getViolationTypeName(violationType)} violations for this exam?`)) {
-      const violationsToDelete = this.violations.filter(v => 
-        v.studentId === studentId && 
-        v.examId === examId && 
-        v.violationType === violationType
-      );
-      
-      if (violationsToDelete.length === 0) return;
-      
-      let deleted = 0;
-      violationsToDelete.forEach(v => {
-        this.api.deleteViolation(v.attemptId).subscribe({
-          next: () => {
-            deleted++;
-            if (deleted === violationsToDelete.length) {
-              alert(`✅ Deleted ${deleted} violation(s).`);
-              this.loadViolations();
-            }
-          },
-          error: (err) => console.error('Delete failed:', err)
-        });
-      });
-    }
-  }
-
-  deleteSingleViolation(attemptId: number) {
-    if (confirm(`⚠️ Delete this violation?`)) {
-      this.api.deleteViolation(attemptId).subscribe({
-        next: () => {
-          alert('✅ Violation deleted successfully.');
-          this.loadViolations();
-          this.closeModal();
-        },
-        error: (err) => {
-          console.error('Delete failed:', err);
-          alert('❌ Failed to delete violation.');
-        }
-      });
-    }
-  }
-
-  clearAllViolations() {
-    if (confirm('⚠️⚠️⚠️ DANGER: This will delete ALL violations from the system!\n\nThis action cannot be undone. Are you absolutely sure?')) {
-      const userInput = prompt('Type "DELETE" to confirm:');
-      if (userInput === 'DELETE') {
-        this.api.clearAllViolations().subscribe({
-          next: () => {
-            alert('✅ All violations have been cleared.');
-            this.loadViolations();
-          },
-          error: (err) => {
-            console.error('Clear failed:', err);
-            alert('❌ Failed to clear violations. Please try again.');
-          }
-        });
-      } else {
-        alert('Cancelled. No violations were deleted.');
-      }
-    }
-  }
-
-  // ========== STATS METHODS ==========
 
   getTotalViolations(): number { 
     return this.violations.length; 
@@ -406,20 +356,77 @@ playNotificationSound() {
     }
   }
 
-  // ========== EXAM CRUD METHODS ==========
-
-  createExam() { this.router.navigate(['/admin/create-exam']); }
-  editExam(id: number) { this.router.navigate(['/admin/edit-exam', id]); }
-  addQuestions(id: number) { this.router.navigate(['/admin/add-questions', id]); }
-  viewResults(id: number) { this.router.navigate(['/admin/exam-results', id]); }
-  
-  publishExam(id: number) {
-    this.api.publishExam(id).subscribe(() => this.loadExams());
+  async clearAllViolations() {
+    const confirmed = await this.toast.confirmDelete('ALL violation records');
+    if (confirmed) {
+      localStorage.removeItem('violations');
+      this.violations = [];
+      this.filteredViolations = [];
+      this.toast.success('All violations cleared successfully');
+      this.loadViolations();
+    }
   }
 
-  deleteExam(id: number, title: string) {
-    if (confirm(`Delete "${title}"?`)) {
-      this.api.deleteExam(id).subscribe(() => this.loadExams());
+  // ========== EXAM CRUD METHODS ==========
+
+  createExam() { 
+    this.router.navigate(['/admin/create-exam']); 
+  }
+  
+  editExam(id: number) { 
+    this.router.navigate(['/admin/edit-exam', id]); 
+  }
+  
+  addQuestions(id: number) { 
+    this.router.navigate(['/admin/add-questions', id]); 
+  }
+  
+  viewResults(id: number) { 
+    this.router.navigate(['/admin/exam-results', id]); 
+  }
+  
+  async publishExam(id: number) {
+    const exam = this.exams.find(e => e.id === id);
+    const confirmed = await this.toast.confirm(
+      `Publish "${exam?.title}"? Students will be able to take this exam.`,
+      'Publish Exam'
+    );
+    
+    if (confirmed) {
+      this.toast.showLoading('Publishing exam...');
+      this.api.publishExam(id).subscribe({
+        next: () => {
+          this.toast.closeLoading();
+          this.toast.success('Exam published successfully!');
+          this.loadExams();
+          this.activeTab = 'exams';
+        },
+        error: () => {
+          this.toast.closeLoading();
+          this.toast.error('Failed to publish exam');
+        }
+      });
+    }
+  }
+
+  async deleteExam(id: number, title: string) {
+    const hasQuestions = this.exams.find(e => e.id === id)?.totalQuestions > 0;
+    const confirmed = await this.toast.confirmExamDelete(title, hasQuestions);
+    
+    if (confirmed) {
+      this.toast.showLoading('Deleting exam...');
+      this.api.deleteExam(id).subscribe({
+        next: () => {
+          this.toast.closeLoading();
+          this.toast.success(`"${title}" has been deleted`);
+          this.loadExams();
+          this.activeTab = 'exams';
+        },
+        error: () => {
+          this.toast.closeLoading();
+          this.toast.error('Failed to delete exam');
+        }
+      });
     }
   }
 
@@ -435,6 +442,7 @@ playNotificationSound() {
       questions: e.totalQuestions || 0 
     }));
     this.showModal = true;
+    this.toast.info(`Showing ${this.exams.length} exams`);
   }
 
   showStudentList() {
@@ -449,6 +457,7 @@ playNotificationSound() {
       avgScore: 0 
     }));
     this.showModal = true;
+    this.toast.info(`Showing ${this.students.length} students`);
   }
 
   showAttemptsList() {
@@ -464,6 +473,7 @@ playNotificationSound() {
       submittedAt: new Date(a.submittedAt).toLocaleString() 
     }));
     this.showModal = true;
+    this.toast.info(`Showing ${this.attempts.length} attempts`);
   }
 
   showAverageScore() {

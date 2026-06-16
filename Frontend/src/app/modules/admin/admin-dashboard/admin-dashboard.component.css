@@ -487,11 +487,14 @@
 .delete-all-btn {
   background: #fee2e2;
   color: #dc2626;
+   border: none !important;
+  outline: none !important;
 }
 
 .delete-all-btn:hover {
   background: #dc2626;
   color: white;
+  border: none !important;
 }
 
 /* Violation Stats */
@@ -509,7 +512,6 @@
   display: flex;
   align-items: center;
   gap: 15px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .stat-icon {

@@ -1,17 +1,14 @@
 ﻿CREATE PROCEDURE sp_CreateQuestion
     @QuestionText NVARCHAR(MAX),
-    @OptionA NVARCHAR(500),
-    @OptionB NVARCHAR(500),
-    @OptionC NVARCHAR(500),
-    @OptionD NVARCHAR(500),
-    @CorrectAnswer CHAR(1),
+    @QuestionType NVARCHAR(50),
     @Marks INT,
     @ExamId INT,
-    @NewId INT OUTPUT
+    @CreatedAt DATETIME
 AS
 BEGIN
-    INSERT INTO Questions (QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer, Marks, CreatedAt, ExamId)
-    VALUES (@QuestionText, @OptionA, @OptionB, @OptionC, @OptionD, @CorrectAnswer, @Marks, GETDATE(), @ExamId);
+    INSERT INTO Questions (QuestionText, QuestionType, Marks, ExamId, CreatedAt)
+    VALUES (@QuestionText, @QuestionType, @Marks, @ExamId, @CreatedAt);
     
-    SET @NewId = SCOPE_IDENTITY();
+    SELECT SCOPE_IDENTITY() AS Id;
 END
+GO

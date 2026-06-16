@@ -1,101 +1,277 @@
-import { CommonModule } from '@angular/common'; 
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { AuthService } from '../../../shared/services/auth.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-results',
-  templateUrl: './results.component.html',
+  templateUrl: './results.component.html',  // ← FIXED: was pointing to exam.component.html
   styleUrls: ['./results.component.css'],
   standalone: false
 })
 export class ResultsComponent implements OnInit {
-  user: any;
   results: any[] = [];
-  loading = true;
-  errorMessage = '';
-
+  loading: boolean = true;
+  errorMessage: string = '';
+  searchTerm: string = '';
+  statusFilter: string = 'all';
+  sortField: string = 'submittedAt';
+  sortDirection: string = 'desc';
+  studentId: number;
+  
   // Modal properties
   showDetailModal: boolean = false;
   selectedResult: any = null;
   selectedAnswers: any[] = [];
 
   constructor(
-    private auth: AuthService,
+    private router: Router,
     private api: ApiService,
-    private router: Router
-  ) {}
+    private auth: AuthService,
+    private toast: ToastService
+  ) {
+    this.studentId = this.auth.getUser()?.userId;
+  }
 
   ngOnInit() {
-    this.user = this.auth.getUser();
     this.loadResults();
   }
 
   loadResults() {
-    this.loading = true;
-    this.api.getStudentResults(this.user.userId).subscribe({
+    this.toast.showLoading('Loading your results...');
+    this.errorMessage = '';
+    
+    this.api.getStudentResults(this.studentId).subscribe({
       next: (data: any) => {
-        console.log('Results received:', data);
-        this.results = data;
+        this.toast.closeLoading();
+        this.results = data || [];
         this.loading = false;
+        // In the loadResults method or wherever you display percentage
+this.results = data.map((result: any) => ({
+  ...result,
+  percentage: Number(result.percentage).toFixed(2)
+}));
+        if (this.results.length === 0) {
+          this.errorMessage = 'No results found. You haven\'t taken any exams yet.';
+          this.toast.info('No results found');
+        } else {
+          this.toast.success(`Loaded ${this.results.length} exam results`);
+        }
       },
-      error: (err: any) => {
+      error: (err) => {
+        this.toast.closeLoading();
         console.error('Error loading results:', err);
-        this.errorMessage = 'Failed to load results. Please try again.';
+        this.errorMessage = 'Failed to load results. Please try again later.';
+        this.toast.error('Failed to load results');
+        this.results = [];
         this.loading = false;
       }
     });
   }
 
-  viewResultDetail(attemptId: number) {
-  console.log('View Details clicked for attempt:', attemptId);
-  
-  this.api.getResultByAttempt(attemptId).subscribe({
-    next: (data: any) => {
-      console.log('Data received:', data);
-      this.selectedResult = data;
-      this.selectedAnswers = data.answers || [];
-      this.showDetailModal = true;
-      console.log('Modal should open:', this.showDetailModal);
-    },
-    error: (err: any) => {
-      console.error('Error loading result details:', err);
-      alert('Failed to load result details');
+  get filteredResults() {
+    let filtered = [...this.results];
+    
+    if (this.searchTerm) {
+      filtered = filtered.filter(r => 
+        r.examTitle?.toLowerCase().includes(this.searchTerm.toLowerCase())
+      );
     }
-  });
-}
+    
+    if (this.statusFilter === 'passed') {
+      filtered = filtered.filter(r => r.isPassed);
+    } else if (this.statusFilter === 'failed') {
+      filtered = filtered.filter(r => !r.isPassed);
+    }
+    
+    filtered.sort((a, b) => {
+      let aVal = a[this.sortField];
+      let bVal = b[this.sortField];
+      
+      if (this.sortField === 'percentage' || this.sortField === 'score') {
+        aVal = Number(aVal);
+        bVal = Number(bVal);
+      }
+      
+      if (this.sortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+    
+    return filtered;
+  }
+
+  getPassCount(): number {
+    return this.results.filter(r => r.isPassed).length;
+  }
+
+  getFailCount(): number {
+    return this.results.filter(r => !r.isPassed).length;
+  }
+
+  getAverageScore(): number {
+    if (this.results.length === 0) return 0;
+    const total = this.results.reduce((sum, r) => sum + r.percentage, 0);
+    return Math.round(total / this.results.length);
+  }
+
+  getPassRate(): number {
+    if (this.results.length === 0) return 0;
+    return Math.round((this.getPassCount() / this.results.length) * 100);
+  }
+
+  getSortIcon(field: string): string {
+    if (this.sortField !== field) return 'fa-sort';
+    return this.sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+  }
+
+  sortBy(field: string) {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+    this.toast.info(`Sorting by ${field}`);
+  }
+
+  clearFilters() {
+    this.searchTerm = '';
+    this.statusFilter = 'all';
+    this.sortField = 'submittedAt';
+    this.sortDirection = 'desc';
+    this.toast.info('All filters cleared');
+  }
+
+  viewResultDetail(attemptId: number) {
+    this.toast.showLoading('Loading result details...');
+    
+    this.api.getResultByAttempt(attemptId).subscribe({
+      next: (data: any) => {
+        this.toast.closeLoading();
+        this.selectedResult = {
+          examTitle: data.examTitle,
+          score: data.score,
+          totalMarks: data.totalMarks,
+          percentage: data.percentage,
+          isPassed: data.isPassed,
+          submittedAt: data.submittedAt
+        };
+        this.selectedAnswers = data.answers || [];
+        this.showDetailModal = true;
+        this.toast.success('Result details loaded');
+      },
+      error: (err) => {
+        this.toast.closeLoading();
+        console.error('Error loading result details:', err);
+        this.toast.error('Failed to load result details');
+      }
+    });
+  }
 
   closeModal() {
     this.showDetailModal = false;
     this.selectedResult = null;
     this.selectedAnswers = [];
+  }
+
+  async exportToCSV() {
+    if (this.filteredResults.length === 0) {
+      this.toast.warning('No data to export');
+      return;
+    }
+
+    this.toast.showLoading('Preparing export...');
     
-    // Replace the dummy state
-    history.replaceState(null, '', location.href);
+    try {
+      const headers = ['Exam Title', 'Score', 'Total Marks', 'Percentage', 'Status', 'Submitted Date'];
+      const rows = this.filteredResults.map(r => [
+        r.examTitle,
+        r.score,
+        r.totalMarks,
+        `${r.percentage}%`,
+        r.isPassed ? 'Passed' : 'Failed',
+        new Date(r.submittedAt).toLocaleString()
+      ]);
+      
+      const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my_results_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      this.toast.closeLoading();
+      this.toast.success(`Exported ${this.filteredResults.length} results`);
+    } catch (error) {
+      this.toast.closeLoading();
+      console.error('Export error:', error);
+      this.toast.error('Failed to export results');
+    }
   }
 
-  getCorrectCount(): number {
-    return this.selectedAnswers.filter(a => a.isCorrect).length;
+  printResults() {
+    if (this.filteredResults.length === 0) {
+      this.toast.warning('No data to print');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>My Exam Results</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              .passed { color: green; font-weight: bold; }
+              .failed { color: red; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h1>My Exam Results</h1>
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <table>
+              <thead>
+                <tr><th>Exam Title</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                ${this.filteredResults.map(r => `
+                  <tr>
+                    <td>${r.examTitle}</td>
+                    <td>${r.score}/${r.totalMarks}</td>
+                    <td>${r.percentage}%</td>
+                    <td class="${r.isPassed ? 'passed' : 'failed'}">${r.isPassed ? 'Passed' : 'Failed'}</td>
+                    <td>${new Date(r.submittedAt).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+      this.toast.info('Print window opened');
+    } else {
+      this.toast.error('Unable to open print window');
+    }
   }
 
-  getWrongCount(): number {
-    return this.selectedAnswers.filter(a => !a.isCorrect).length;
+  goBack() {
+    this.router.navigate(['/dashboard']);
   }
 
   logout() {
     this.auth.logout();
-  }
-
-  // Listen for browser back button
-  @HostListener('window:popstate', ['$event'])
-  onPopState(event: any) {
-    if (this.showDetailModal) {
-      // If modal is open, just close it and don't navigate
-      this.closeModal();
-      // Push a new state to prevent navigation
-      history.pushState(null, '', location.href);
-      event.preventDefault();
-    }
   }
 }

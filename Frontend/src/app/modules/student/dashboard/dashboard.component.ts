@@ -2,6 +2,7 @@ import { Component, OnInit, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -14,7 +15,7 @@ export class DashboardComponent implements OnInit {
   allExams: any[] = [];
   availableExamsList: any[] = [];
   results: any[] = [];
-  attemptedExams: Set<number> = new Set<number>();
+  attemptedExamIds: Set<number> = new Set<number>();
   loading = true;
   errorMessage = '';
 
@@ -27,7 +28,7 @@ export class DashboardComponent implements OnInit {
   highestScore: number = 0;
 
   // For UI
-  activeTab: string = 'exams';
+  activeTab: string = 'dashboard';
   isDarkMode: boolean = false;
 
   // Notifications
@@ -39,17 +40,39 @@ export class DashboardComponent implements OnInit {
     private auth: AuthService,
     private api: ApiService,
     private router: Router,
+    private toast: ToastService
   ) {}
 
   ngOnInit() {
     this.user = this.auth.getUser();
+    this.checkDarkMode();
     this.loadDashboardData();
     this.loadNotifications();
   }
 
-  
+  checkDarkMode() {
+    const darkMode = localStorage.getItem('darkMode') === 'true';
+    if (darkMode) {
+      this.isDarkMode = true;
+      document.body.classList.add('dark-mode');
+    }
+  }
+
+  toggleDarkMode() {
+    this.isDarkMode = !this.isDarkMode;
+    if (this.isDarkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('darkMode', 'true');
+      this.toast.info('Dark mode enabled');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('darkMode', 'false');
+      this.toast.info('Light mode enabled');
+    }
+  }
 
   loadDashboardData() {
+    this.toast.showLoading('Loading your dashboard...');
     this.loadAllExams();
     this.loadResults();
     this.loadRank();
@@ -58,26 +81,54 @@ export class DashboardComponent implements OnInit {
   loadAllExams() {
     this.api.getPublishedExams().subscribe({
       next: (data: any) => {
-        this.allExams = data;
+        console.log('Published exams received:', data);
+        this.allExams = data || [];
+        
         this.api.getStudentResults(this.user.userId).subscribe({
           next: (results: any) => {
-            const examIds: number[] = results.map((r: any) => r.examId);
-            const completedExamIdsSet = new Set<number>(examIds);
-            this.availableExamsList = data.filter((exam: any) => !completedExamIdsSet.has(exam.id));
+            console.log('Student results:', results);
+            this.results = results || [];
+            
+            // Create set of attempted exam IDs
+            this.attemptedExamIds = new Set<number>(
+              this.results.map((r: any) => r.examId)
+            );
+            
+            console.log('Attempted exam IDs:', this.attemptedExamIds);
+            
+            // Filter available exams (not attempted)
+            this.availableExamsList = this.allExams.filter(
+              (exam: any) => !this.attemptedExamIds.has(exam.id)
+            );
+            
             this.availableExams = this.availableExamsList.length;
-            this.attemptedExams.clear();
-            examIds.forEach(id => this.attemptedExams.add(id));
+            this.completedExams = this.attemptedExamIds.size;
             this.loading = false;
+            this.toast.closeLoading();
+            
+            if (this.availableExams === 0 && this.completedExams > 0) {
+              this.toast.info('🎉 You have completed all available exams!');
+            } else if (this.availableExams === 0) {
+              this.toast.info('No exams available at the moment.');
+            } else {
+              this.toast.success(`${this.availableExams} exam(s) available to take`);
+            }
           },
-          error: () => {
-            this.availableExamsList = data;
-            this.availableExams = data.length;
+          error: (err) => {
+            console.error('Error loading results:', err);
+            this.availableExamsList = this.allExams;
+            this.availableExams = this.allExams.length;
             this.loading = false;
+            this.toast.closeLoading();
+            this.toast.error('Failed to load your results');
           }
         });
       },
-      error: () => {
+      error: (err) => {
+        console.error('Error loading exams:', err);
         this.loading = false;
+        this.toast.closeLoading();
+        this.toast.error('Failed to load available exams');
       }
     });
   }
@@ -85,12 +136,14 @@ export class DashboardComponent implements OnInit {
   loadResults() {
     this.api.getStudentResults(this.user.userId).subscribe({
       next: (data: any) => {
-        this.results = data;
-        this.completedExams = data.length;
+        console.log('Student results:', data);
+        this.results = data || [];
+        this.completedExams = this.results.length;
         this.calculateAverageScore();
       },
       error: (err) => {
         console.error('Error loading results:', err);
+        this.toast.error('Failed to load your results');
       }
     });
   }
@@ -98,8 +151,13 @@ export class DashboardComponent implements OnInit {
   loadRank() {
     this.api.getStudentRank(this.user.userId).subscribe({
       next: (data: any) => {
-        this.studentRank = data.rank;
-        this.totalStudents = data.totalStudents;
+        console.log('Student rank:', data);
+        this.studentRank = data.rank || 0;
+        this.totalStudents = data.totalStudents || 0;
+        
+        if (this.studentRank === 1) {
+          this.toast.success('🏆 You are the Top Performer!');
+        }
       },
       error: (err) => {
         console.error('Error loading rank:', err);
@@ -112,6 +170,7 @@ export class DashboardComponent implements OnInit {
   calculateAverageScore() {
     if (this.results.length === 0) {
       this.averageScore = 0;
+      this.highestScore = 0;
       return;
     }
     const total = this.results.reduce((sum, r) => sum + (r.percentage || 0), 0);
@@ -126,21 +185,55 @@ export class DashboardComponent implements OnInit {
   }
 
   isExamAttempted(examId: number): boolean {
-    return this.attemptedExams.has(examId);
+    return this.attemptedExamIds.has(examId);
   }
 
-  startExam(examId: number) {
+  getExamResult(examId: number): any {
+    return this.results.find(r => r.examId === examId);
+  }
+
+  getExamStatus(examId: number): string {
+    const result = this.getExamResult(examId);
+    if (result) {
+      return result.isPassed ? '✅ Passed' : '❌ Failed';
+    }
+    return 'Not Attempted';
+  }
+
+  getExamScore(examId: number): string {
+    const result = this.getExamResult(examId);
+    if (result) {
+      return `${result.percentage}%`;
+    }
+    return '--';
+  }
+
+  async startExam(examId: number) {
+    // Check if exam is already attempted
     if (this.isExamAttempted(examId)) {
-      alert('You have already completed this exam.');
+      this.toast.warning('You have already completed this exam.');
       return;
     }
-    if (confirm('Are you ready to start the exam? The timer will start immediately.')) {
+    
+    const confirmed = await this.toast.confirm(
+      'Are you ready to start the exam? The timer will start immediately.',
+      'Start Exam'
+    );
+    
+    if (confirmed) {
+      this.toast.info('Loading exam...');
       this.router.navigate(['/exam', examId]);
     }
   }
 
   viewResultDetail(attemptId: number) {
+    this.toast.info('Loading result details...');
     this.router.navigate(['/result-detail', attemptId]);
+  }
+
+  viewAllResults() {
+    this.toast.info('Loading all results...');
+    this.router.navigate(['/results']);
   }
 
   getRankMessage(): string {
@@ -167,7 +260,6 @@ export class DashboardComponent implements OnInit {
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
     this.unreadCount = this.notifications.filter((n: any) => !n.read).length;
-    console.log('Loaded notifications:', this.notifications.length);
   }
 
   toggleNotificationDropdown() {
@@ -182,16 +274,24 @@ export class DashboardComponent implements OnInit {
     );
     localStorage.setItem(`notifications_${studentId}`, JSON.stringify(notifications));
     this.loadNotifications();
+    this.toast.info('Notification marked as read');
   }
 
-  clearAllNotifications() {
-    const studentId = this.user?.userId;
-    localStorage.setItem(`notifications_${studentId}`, '[]');
-    this.loadNotifications();
-    this.showNotifications = false;
+  async clearAllNotifications() {
+    const confirmed = await this.toast.confirm(
+      'Clear all notifications?',
+      'Clear Notifications'
+    );
+    
+    if (confirmed) {
+      const studentId = this.user?.userId;
+      localStorage.setItem(`notifications_${studentId}`, '[]');
+      this.loadNotifications();
+      this.showNotifications = false;
+      this.toast.success('All notifications cleared');
+    }
   }
 
-  // Close dropdown when clicking outside
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -200,7 +300,15 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  logout() {
-    this.auth.logout();
+  async logout() {
+    const confirmed = await this.toast.confirm(
+      'Are you sure you want to logout?',
+      'Logout'
+    );
+    
+    if (confirmed) {
+      this.toast.info('Logging out...');
+      this.auth.logout();
+    }
   }
 }

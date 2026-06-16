@@ -20,13 +20,8 @@ namespace OnlineExamPortal.API.Repositories.Implementation
         {
             var exams = new List<Exam>();
 
-            using SqlConnection conn = new SqlConnection(connectionString);  // ← Now it works
-            string sql = @"
-                SELECT 
-                    e.*, 
-                    (SELECT COUNT(*) FROM Questions WHERE ExamId = e.Id) AS TotalQuestions
-                FROM Exams e
-            ";
+            using SqlConnection conn = new SqlConnection(connectionString);
+            string sql = "SELECT * FROM Exams ORDER BY Id DESC";
 
             using SqlCommand cmd = new SqlCommand(sql, conn);
             await conn.OpenAsync();
@@ -45,7 +40,8 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                     IsPublished = (bool)reader["IsPublished"],
                     CreatedAt = (DateTime)reader["CreatedAt"],
                     UserId = (int)reader["UserId"],
-                    
+                    StartTime = (DateTime)reader["StartTime"],
+                    EndTime = (DateTime)reader["EndTime"]
                 });
             }
 
@@ -140,19 +136,32 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                     cmdAnswers.Parameters.AddWithValue("@ExamId", id);
                     await cmdAnswers.ExecuteNonQueryAsync();
 
-                    // 2. Delete questions of this exam
+                    // 2. Delete options for questions of this exam
+                    string deleteOptionsSql = @"
+                DELETE FROM Options 
+                WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)
+            ";
+                    using SqlCommand cmdOptions = new SqlCommand(deleteOptionsSql, conn, transaction);
+                    cmdOptions.Parameters.AddWithValue("@ExamId", id);
+                    await cmdOptions.ExecuteNonQueryAsync();
+
+                    // 3. Delete questions of this exam
                     string deleteQuestionsSql = "DELETE FROM Questions WHERE ExamId = @ExamId";
                     using SqlCommand cmdQuestions = new SqlCommand(deleteQuestionsSql, conn, transaction);
                     cmdQuestions.Parameters.AddWithValue("@ExamId", id);
                     await cmdQuestions.ExecuteNonQueryAsync();
 
-                    // 3. Delete exam attempts for this exam
+                    // 4. Delete exam attempts for this exam
                     string deleteAttemptsSql = "DELETE FROM ExamAttempts WHERE ExamId = @ExamId";
                     using SqlCommand cmdAttempts = new SqlCommand(deleteAttemptsSql, conn, transaction);
                     cmdAttempts.Parameters.AddWithValue("@ExamId", id);
                     await cmdAttempts.ExecuteNonQueryAsync();
 
-                    // 4. Finally delete the exam
+                    // 5. DO NOT UPDATE TotalMarks - Remove this part!
+                    // The exam's total marks should remain as originally set
+                    // Only delete the exam itself
+
+                    // 6. Finally delete the exam
                     string deleteExamSql = "DELETE FROM Exams WHERE Id = @ExamId";
                     using SqlCommand cmdExam = new SqlCommand(deleteExamSql, conn, transaction);
                     cmdExam.Parameters.AddWithValue("@ExamId", id);

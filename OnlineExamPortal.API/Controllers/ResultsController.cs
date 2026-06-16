@@ -88,6 +88,7 @@ namespace OnlineExamPortal.API.Controllers
         }
 
         // GET: api/Results/exam/{examId}
+        // GET: api/Results/exam/{examId}
         [HttpGet("exam/{examId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetExamResults(int examId)
@@ -101,21 +102,20 @@ namespace OnlineExamPortal.API.Controllers
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
                 string sql = @"
-                    SELECT 
-                        u.Id AS StudentId,
-                        u.FullName AS StudentName,
-                        u.Email AS StudentEmail,
-                        ea.Id AS AttemptId,
-                        ISNULL(ea.Score, 0) AS Score,
-                        ISNULL(ea.Percentage, 0) AS Percentage,
-                        ISNULL(ea.IsPassed, 0) AS IsPassed,
-                        ea.StartedAt,
-                        ea.SubmittedAt
-                    FROM ExamAttempts ea
-                    INNER JOIN Users u ON ea.UserId = u.Id
-                    WHERE ea.ExamId = @ExamId AND ea.Status = 'Completed'
-                    ORDER BY ea.Score DESC;
-                ";
+            SELECT 
+                u.Id AS StudentId,
+                u.FullName AS StudentName,
+                u.Email AS StudentEmail,
+                ea.Id AS AttemptId,
+                ISNULL(ea.Score, 0) AS Score,
+                ISNULL(ea.Percentage, 0) AS Percentage,
+                ISNULL(ea.IsPassed, 0) AS IsPassed,
+                ea.StartedAt,
+                ea.SubmittedAt
+            FROM ExamAttempts ea
+            INNER JOIN Users u ON ea.UserId = u.Id
+            WHERE ea.ExamId = @ExamId AND ea.Status = 'Completed'
+            ORDER BY ea.Score DESC;";
 
                 using SqlCommand cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@ExamId", examId);
@@ -142,7 +142,6 @@ namespace OnlineExamPortal.API.Controllers
 
             return Ok(results);
         }
-
         // GET: api/Results/{attemptId}
         [HttpGet("{attemptId}")]
         public async Task<IActionResult> GetResultByAttemptId(int attemptId)
@@ -159,24 +158,32 @@ namespace OnlineExamPortal.API.Controllers
 
             var exam = await _examRepository.GetByIdAsync(attempt.ExamId);
 
-            // Get answer details
+            // Get answer details - FIXED to use Options table
             var answers = new List<object>();
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
                 string sql = @"
-                    SELECT 
-                        q.Id AS QuestionId,
-                        q.QuestionText,
-                        ISNULL(a.SelectedOption, 'Not Answered') AS YourAnswer,
-                        q.CorrectAnswer,
-                        ISNULL(a.IsCorrect, 0) AS IsCorrect,
-                        q.Marks
-                    FROM Questions q
-                    LEFT JOIN Answers a ON q.Id = a.QuestionId AND a.ExamAttemptId = @AttemptId
-                    WHERE q.ExamId = @ExamId
-                    ORDER BY q.Id;
-                ";
+            SELECT 
+                q.Id AS QuestionId,
+                q.QuestionText,
+                ISNULL(a.SelectedOptionIds, 'Not Answered') AS YourAnswerIds,
+                (
+                    SELECT STRING_AGG(OptionText, ', ')
+                    FROM Options 
+                    WHERE Id IN (SELECT value FROM STRING_SPLIT(a.SelectedOptionIds, ','))
+                ) AS YourAnswer,
+                (
+                    SELECT STRING_AGG(OptionText, ', ')
+                    FROM Options 
+                    WHERE QuestionId = q.Id AND IsCorrect = 1
+                ) AS CorrectAnswer,
+                ISNULL(a.IsCorrect, 0) AS IsCorrect,
+                q.Marks
+            FROM Questions q
+            LEFT JOIN Answers a ON q.Id = a.QuestionId AND a.ExamAttemptId = @AttemptId
+            WHERE q.ExamId = @ExamId
+            ORDER BY q.Id";
 
                 using SqlCommand cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@AttemptId", attemptId);
@@ -213,7 +220,6 @@ namespace OnlineExamPortal.API.Controllers
 
             return Ok(result);
         }
-
         // GET: api/Results/rank/{studentId}
         [HttpGet("rank/{studentId}")]
         [Authorize(Roles = "Student")]

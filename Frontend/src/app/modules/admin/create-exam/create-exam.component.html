@@ -1,9 +1,9 @@
 <div class="container mt-5">
   <div class="row justify-content-center">
     <div class="col-md-6">
-      <div class="card">
+      <div class="card shadow">
         <div class="card-header bg-primary text-white">
-          <h4>Create New Exam</h4>
+          <h4 class="mb-0">Create New Exam</h4>
         </div>
         <div class="card-body">
           <div *ngIf="message" class="alert" [class.alert-success]="!isError" [class.alert-danger]="isError">
@@ -23,12 +23,12 @@
 
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label">Duration (minutes)</label>
-                <input type="number" class="form-control" [(ngModel)]="duration" name="duration">
+                <label class="form-label">Duration (minutes) *</label>
+                <input type="number" class="form-control" [(ngModel)]="duration" name="duration" required min="1">
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label">Total Marks</label>
-                <input type="number" class="form-control" [(ngModel)]="totalMarks" name="totalMarks">
+                <label class="form-label">Total Marks *</label>
+                <input type="number" class="form-control" [(ngModel)]="totalMarks" name="totalMarks" required min="1">
               </div>
             </div>
 
@@ -38,7 +38,7 @@
           </form>
 
           <div class="mt-3 text-center">
-            <a routerLink="/admin">← Back to Dashboard</a>
+            <a routerLink="/admin" class="btn btn-link">← Back to Dashboard</a>
           </div>
         </div>
       </div>

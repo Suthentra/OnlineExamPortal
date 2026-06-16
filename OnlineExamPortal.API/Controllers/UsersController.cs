@@ -11,18 +11,18 @@ namespace OnlineExamPortal.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]  
+    [Authorize]
     public class UsersController : ControllerBase
     {
-        private readonly IUserRepository _userRepository;  
+        private readonly IUserRepository _userRepository;
 
         public UsersController(IUserRepository userRepository)
         {
-            _userRepository = userRepository;  
+            _userRepository = userRepository;
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
             var users = await _userRepository.GetAllAsync();  // ✅ Fixed: underscore
@@ -63,7 +63,7 @@ namespace OnlineExamPortal.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateUserRequestDto dto)
         {
             // Check if email already exists
@@ -110,7 +110,7 @@ namespace OnlineExamPortal.API.Controllers
             return Ok(new { message = "User updated successfully" });
         }
 
-  
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)

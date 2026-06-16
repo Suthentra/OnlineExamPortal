@@ -7,43 +7,63 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 {
     public class SQLQuestionRepository : IQuestionRepository
     {
-        private readonly IConfiguration configuration;
-        private readonly string connectionString;
+        private readonly string _connectionString;
 
         public SQLQuestionRepository(IConfiguration configuration)
         {
-            this.configuration = configuration;
-            connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
+            _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
         }
 
         public async Task<List<Question>> GetByExamIdAsync(int examId)
         {
             var questions = new List<Question>();
 
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_GetQuestionsByExamId", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "SELECT * FROM Questions WHERE ExamId = @ExamId";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@ExamId", examId);
 
             await conn.OpenAsync();
-
             using SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
-                questions.Add(new Question
+                var question = new Question
                 {
                     Id = (int)reader["Id"],
                     QuestionText = reader["QuestionText"].ToString()!,
-                    OptionA = reader["OptionA"].ToString()!,
-                    OptionB = reader["OptionB"].ToString()!,
-                    OptionC = reader["OptionC"].ToString()!,
-                    OptionD = reader["OptionD"].ToString()!,
-                    CorrectAnswer = reader["CorrectAnswer"].ToString()!,
+                    QuestionType = reader["QuestionType"]?.ToString() ?? "MCQ",
                     Marks = (int)reader["Marks"],
+                    ExamId = (int)reader["ExamId"],
                     CreatedAt = (DateTime)reader["CreatedAt"],
-                    ExamId = (int)reader["ExamId"]
-                });
+                    Options = new List<Option>()
+                };
+                questions.Add(question);
+            }
+
+            await reader.CloseAsync();
+
+            // Load options for each question
+            foreach (var question in questions)
+            {
+                string optionsSql = "SELECT * FROM Options WHERE QuestionId = @QuestionId ORDER BY OptionOrder";
+                using SqlCommand optionsCmd = new SqlCommand(optionsSql, conn);
+                optionsCmd.Parameters.AddWithValue("@QuestionId", question.Id);
+
+                using SqlDataReader optionsReader = await optionsCmd.ExecuteReaderAsync();
+                while (await optionsReader.ReadAsync())
+                {
+                    question.Options.Add(new Option
+                    {
+                        Id = (int)optionsReader["Id"],
+                        QuestionId = (int)optionsReader["QuestionId"],
+                        OptionText = optionsReader["OptionText"].ToString()!,
+                        OptionOrder = (int)optionsReader["OptionOrder"],
+                        IsCorrect = (bool)optionsReader["IsCorrect"],
+                        CreatedAt = (DateTime)optionsReader["CreatedAt"]
+                    });
+                }
             }
 
             return questions;
@@ -51,13 +71,13 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task<Question?> GetByIdAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_GetQuestionById", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "SELECT * FROM Questions WHERE Id = @Id";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", id);
 
             await conn.OpenAsync();
-
             using SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
             if (await reader.ReadAsync())
@@ -66,61 +86,103 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                 {
                     Id = (int)reader["Id"],
                     QuestionText = reader["QuestionText"].ToString()!,
-                    OptionA = reader["OptionA"].ToString()!,
-                    OptionB = reader["OptionB"].ToString()!,
-                    OptionC = reader["OptionC"].ToString()!,
-                    OptionD = reader["OptionD"].ToString()!,
-                    CorrectAnswer = reader["CorrectAnswer"].ToString()!,
+                    QuestionType = reader["QuestionType"]?.ToString() ?? "MCQ",
                     Marks = (int)reader["Marks"],
-                    CreatedAt = (DateTime)reader["CreatedAt"],
-                    ExamId = (int)reader["ExamId"]
+                    ExamId = (int)reader["ExamId"],
+                    CreatedAt = (DateTime)reader["CreatedAt"]
                 };
             }
 
             return null;
         }
 
-        public async Task<Question> CreateAsync(Question question)
+        public async Task<Question?> GetQuestionWithOptionsAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_CreateQuestion", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            Question? question = null;
 
-            cmd.Parameters.AddWithValue("@QuestionText", question.QuestionText);
-            cmd.Parameters.AddWithValue("@OptionA", question.OptionA);
-            cmd.Parameters.AddWithValue("@OptionB", question.OptionB);
-            cmd.Parameters.AddWithValue("@OptionC", question.OptionC);
-            cmd.Parameters.AddWithValue("@OptionD", question.OptionD);
-            cmd.Parameters.AddWithValue("@CorrectAnswer", question.CorrectAnswer);
-            cmd.Parameters.AddWithValue("@Marks", question.Marks);
-            cmd.Parameters.AddWithValue("@ExamId", question.ExamId);
+            using SqlConnection conn = new SqlConnection(_connectionString);
 
-            SqlParameter outputIdParam = new SqlParameter("@NewId", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            cmd.Parameters.Add(outputIdParam);
+            string questionSql = "SELECT * FROM Questions WHERE Id = @Id";
+            using SqlCommand questionCmd = new SqlCommand(questionSql, conn);
+            questionCmd.Parameters.AddWithValue("@Id", id);
 
             await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+            using SqlDataReader reader = await questionCmd.ExecuteReaderAsync();
 
-            question.Id = (int)outputIdParam.Value;
+            if (await reader.ReadAsync())
+            {
+                question = new Question
+                {
+                    Id = (int)reader["Id"],
+                    QuestionText = reader["QuestionText"].ToString()!,
+                    QuestionType = reader["QuestionType"]?.ToString() ?? "MCQ",
+                    Marks = (int)reader["Marks"],
+                    ExamId = (int)reader["ExamId"],
+                    CreatedAt = (DateTime)reader["CreatedAt"],
+                    Options = new List<Option>()
+                };
+            }
+
+            await reader.CloseAsync();
+
+            if (question != null)
+            {
+                string optionsSql = "SELECT * FROM Options WHERE QuestionId = @QuestionId ORDER BY OptionOrder";
+                using SqlCommand optionsCmd = new SqlCommand(optionsSql, conn);
+                optionsCmd.Parameters.AddWithValue("@QuestionId", question.Id);
+
+                using SqlDataReader optionsReader = await optionsCmd.ExecuteReaderAsync();
+                while (await optionsReader.ReadAsync())
+                {
+                    question.Options.Add(new Option
+                    {
+                        Id = (int)optionsReader["Id"],
+                        QuestionId = (int)optionsReader["QuestionId"],
+                        OptionText = optionsReader["OptionText"].ToString()!,
+                        OptionOrder = (int)optionsReader["OptionOrder"],
+                        IsCorrect = (bool)optionsReader["IsCorrect"],
+                        CreatedAt = (DateTime)optionsReader["CreatedAt"]
+                    });
+                }
+            }
+
+            return question;
+        }
+
+        public async Task<Question> CreateAsync(Question question)
+        {
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = @"
+                INSERT INTO Questions (QuestionText, QuestionType, Marks, ExamId, CreatedAt)
+                VALUES (@QuestionText, @QuestionType, @Marks, @ExamId, @CreatedAt);
+                SELECT SCOPE_IDENTITY();";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@QuestionText", question.QuestionText);
+            cmd.Parameters.AddWithValue("@QuestionType", question.QuestionType);
+            cmd.Parameters.AddWithValue("@Marks", question.Marks);
+            cmd.Parameters.AddWithValue("@ExamId", question.ExamId);
+            cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+
+            await conn.OpenAsync();
+            question.Id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             return question;
         }
 
         public async Task UpdateAsync(Question question)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_UpdateQuestion", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = @"
+                UPDATE Questions 
+                SET QuestionText = @QuestionText, 
+                    QuestionType = @QuestionType,
+                    Marks = @Marks
+                WHERE Id = @Id";
 
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", question.Id);
             cmd.Parameters.AddWithValue("@QuestionText", question.QuestionText);
-            cmd.Parameters.AddWithValue("@OptionA", question.OptionA);
-            cmd.Parameters.AddWithValue("@OptionB", question.OptionB);
-            cmd.Parameters.AddWithValue("@OptionC", question.OptionC);
-            cmd.Parameters.AddWithValue("@OptionD", question.OptionD);
-            cmd.Parameters.AddWithValue("@CorrectAnswer", question.CorrectAnswer);
+            cmd.Parameters.AddWithValue("@QuestionType", question.QuestionType);
             cmd.Parameters.AddWithValue("@Marks", question.Marks);
 
             await conn.OpenAsync();
@@ -129,9 +191,10 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task DeleteAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_DeleteQuestion", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "DELETE FROM Questions WHERE Id = @Id";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", id);
 
             await conn.OpenAsync();
@@ -140,21 +203,23 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task<bool> ExistsAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_QuestionExists", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "SELECT COUNT(1) FROM Questions WHERE Id = @Id";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", id);
 
             await conn.OpenAsync();
             var result = await cmd.ExecuteScalarAsync();
-            return Convert.ToBoolean(result);
+            return Convert.ToInt32(result) > 0;
         }
 
         public async Task<int> GetTotalMarksByExamIdAsync(int examId)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
-            using SqlCommand cmd = new SqlCommand("sp_GetTotalMarksByExamId", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "SELECT ISNULL(SUM(Marks), 0) FROM Questions WHERE ExamId = @ExamId";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@ExamId", examId);
 
             await conn.OpenAsync();
@@ -164,25 +229,26 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task BulkCreateAsync(List<Question> questions)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
             foreach (var question in questions)
             {
-                using SqlCommand cmd = new SqlCommand("sp_CreateQuestion", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
+                string sql = @"
+                    INSERT INTO Questions (QuestionText, QuestionType, Marks, ExamId, CreatedAt)
+                    VALUES (@QuestionText, @QuestionType, @Marks, @ExamId, @CreatedAt);
+                    SELECT SCOPE_IDENTITY();";
 
+                using SqlCommand cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@QuestionText", question.QuestionText);
-                cmd.Parameters.AddWithValue("@OptionA", question.OptionA);
-                cmd.Parameters.AddWithValue("@OptionB", question.OptionB);
-                cmd.Parameters.AddWithValue("@OptionC", question.OptionC);
-                cmd.Parameters.AddWithValue("@OptionD", question.OptionD);
-                cmd.Parameters.AddWithValue("@CorrectAnswer", question.CorrectAnswer);
+                cmd.Parameters.AddWithValue("@QuestionType", question.QuestionType);
                 cmd.Parameters.AddWithValue("@Marks", question.Marks);
                 cmd.Parameters.AddWithValue("@ExamId", question.ExamId);
+                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
 
-                await cmd.ExecuteNonQueryAsync();
+                question.Id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
+
     }
 }

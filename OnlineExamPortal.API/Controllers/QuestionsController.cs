@@ -8,21 +8,24 @@ namespace OnlineExamPortal.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
     public class QuestionsController : ControllerBase
     {
         private readonly IQuestionRepository _questionRepository;
+        private readonly IOptionRepository _optionRepository;
         private readonly IExamRepository _examRepository;
 
-        public QuestionsController(IQuestionRepository questionRepository, IExamRepository examRepository)
+        public QuestionsController(
+            IQuestionRepository questionRepository,
+            IOptionRepository optionRepository,
+            IExamRepository examRepository)
         {
             _questionRepository = questionRepository;
+            _optionRepository = optionRepository;
             _examRepository = examRepository;
         }
 
-        // GET: api/Questions/exam/{examId} - Anyone can view
+        // GET: api/Questions/exam/{examId}
         [HttpGet("exam/{examId}")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetQuestionsByExamId(int examId)
         {
             var exam = await _examRepository.GetByIdAsync(examId);
@@ -35,137 +38,254 @@ namespace OnlineExamPortal.API.Controllers
             {
                 Id = q.Id,
                 QuestionText = q.QuestionText,
-                OptionA = q.OptionA,
-                OptionB = q.OptionB,
-                OptionC = q.OptionC,
-                OptionD = q.OptionD,
-                Marks = q.Marks
+                QuestionType = q.QuestionType,
+                Marks = q.Marks,
+                Options = q.Options.Select(o => new OptionResponseDto
+                {
+                    Id = o.Id,
+                    OptionText = o.OptionText,
+                    OptionOrder = o.OptionOrder,
+                    IsCorrect = o.IsCorrect
+                }).ToList()
             });
 
             return Ok(response);
         }
 
-        // GET: api/Questions/{id} - Admin only
+        // GET: api/Questions/{id}
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetQuestionById(int id)
         {
-            var question = await _questionRepository.GetByIdAsync(id);
+            var question = await _questionRepository.GetQuestionWithOptionsAsync(id);
             if (question == null)
                 return NotFound(new { message = "Question not found" });
 
-            return Ok(question);
-        }
-
-        // POST: api/Questions/exam/{examId} - Admin only
-        [HttpPost("exam/{examId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateQuestion(int examId, [FromBody] CreateQuestionRequestDto request)
-        {
-            var exam = await _examRepository.GetByIdAsync(examId);
-            if (exam == null)
-                return NotFound(new { message = "Exam not found" });
-
-            var question = new Question
+            var response = new QuestionResponseDto
             {
-                QuestionText = request.QuestionText,
-                OptionA = request.OptionA,
-                OptionB = request.OptionB,
-                OptionC = request.OptionC,
-                OptionD = request.OptionD,
-                CorrectAnswer = request.CorrectAnswer,
-                Marks = request.Marks,
-                CreatedAt = DateTime.Now,
-                ExamId = examId
+                Id = question.Id,
+                QuestionText = question.QuestionText,
+                QuestionType = question.QuestionType,
+                Marks = question.Marks,
+                Options = question.Options.Select(o => new OptionResponseDto
+                {
+                    Id = o.Id,
+                    OptionText = o.OptionText,
+                    OptionOrder = o.OptionOrder,
+                    IsCorrect = o.IsCorrect
+                }).ToList()
             };
 
-            var createdQuestion = await _questionRepository.CreateAsync(question);
-
-            // Update exam total marks
-            var totalMarks = await _questionRepository.GetTotalMarksByExamIdAsync(examId);
-            exam.TotalMarks = totalMarks;
-            await _examRepository.UpdateAsync(exam);
-
-            return CreatedAtAction(nameof(GetQuestionById), new { id = createdQuestion.Id }, createdQuestion);
+            return Ok(response);
         }
 
-        // PUT: api/Questions/{id} - Admin only
+        // POST: api/Questions/exam/{examId}
+        [HttpPost("exam/{examId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateQuestion(int examId, [FromBody] CreateQuestionWithOptionsDto request)
+        {
+            try
+            {
+                var exam = await _examRepository.GetByIdAsync(examId);
+                if (exam == null)
+                    return NotFound(new { message = "Exam not found" });
+
+                // Validate
+                if (request.Options == null || request.Options.Count < 2)
+                    return BadRequest(new { message = "At least 2 options required" });
+
+                if (!request.Options.Any(o => o.IsCorrect))
+                    return BadRequest(new { message = "At least one correct answer required" });
+
+                // For MCQ (Single Answer), ensure only ONE correct answer
+                if (request.QuestionType == "MCQ")
+                {
+                    var correctCount = request.Options.Count(o => o.IsCorrect);
+                    if (correctCount > 1)
+                        return BadRequest(new { message = "Single Answer questions can only have ONE correct option" });
+                }
+
+                // Create question
+                var question = new Question
+                {
+                    QuestionText = request.QuestionText,
+                    QuestionType = request.QuestionType,
+                    Marks = request.Marks,
+                    ExamId = examId,
+                    CreatedAt = DateTime.Now
+                };
+
+                var createdQuestion = await _questionRepository.CreateAsync(question);
+
+                // Create options
+                foreach (var optionDto in request.Options)
+                {
+                    var option = new Option
+                    {
+                        QuestionId = createdQuestion.Id,
+                        OptionText = optionDto.OptionText,
+                        OptionOrder = optionDto.OptionOrder,
+                        IsCorrect = optionDto.IsCorrect,
+                        CreatedAt = DateTime.Now
+                    };
+                    await _optionRepository.CreateAsync(option);
+                }
+
+                
+
+                return Ok(new { id = createdQuestion.Id, message = "Question created successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // PUT: api/Questions/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateQuestion(int id, [FromBody] UpdateQuestionRequestDto request)
+        public async Task<IActionResult> UpdateQuestion(int id, [FromBody] UpdateQuestionWithOptionsDto request)
         {
-            var existingQuestion = await _questionRepository.GetByIdAsync(id);
-            if (existingQuestion == null)
-                return NotFound(new { message = "Question not found" });
+            try
+            {
+                var existingQuestion = await _questionRepository.GetQuestionWithOptionsAsync(id);
+                if (existingQuestion == null)
+                    return NotFound(new { message = "Question not found" });
 
-            existingQuestion.QuestionText = request.QuestionText;
-            existingQuestion.OptionA = request.OptionA;
-            existingQuestion.OptionB = request.OptionB;
-            existingQuestion.OptionC = request.OptionC;
-            existingQuestion.OptionD = request.OptionD;
-            existingQuestion.CorrectAnswer = request.CorrectAnswer;
-            existingQuestion.Marks = request.Marks;
+                // Validate
+                if (request.Options == null || request.Options.Count < 2)
+                    return BadRequest(new { message = "At least 2 options required" });
 
-            await _questionRepository.UpdateAsync(existingQuestion);
-            return Ok(new { message = "Question updated successfully" });
+                if (!request.Options.Any(o => o.IsCorrect))
+                    return BadRequest(new { message = "At least one correct answer required" });
+
+                // For MCQ (Single Answer), ensure only ONE correct answer
+                if (request.QuestionType == "MCQ")
+                {
+                    var correctCount = request.Options.Count(o => o.IsCorrect);
+                    if (correctCount > 1)
+                        return BadRequest(new { message = "Single Answer questions can only have ONE correct option" });
+                }
+
+                int examId = existingQuestion.ExamId;
+
+                // Update question
+                existingQuestion.QuestionText = request.QuestionText;
+                existingQuestion.QuestionType = request.QuestionType;
+                existingQuestion.Marks = request.Marks;
+                await _questionRepository.UpdateAsync(existingQuestion);
+
+                // Delete old options and create new ones
+                await _optionRepository.DeleteByQuestionIdAsync(id);
+
+                foreach (var optionDto in request.Options)
+                {
+                    var option = new Option
+                    {
+                        QuestionId = id,
+                        OptionText = optionDto.OptionText,
+                        OptionOrder = optionDto.OptionOrder,
+                        IsCorrect = optionDto.IsCorrect,
+                        CreatedAt = DateTime.Now
+                    };
+                    await _optionRepository.CreateAsync(option);
+                }
+
+                
+
+                return Ok(new { message = "Question updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        // DELETE: api/Questions/{id} - Admin only
+        // DELETE: api/Questions/{id}
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteQuestion(int id)
         {
-            var question = await _questionRepository.GetByIdAsync(id);
-            if (question == null)
-                return NotFound(new { message = "Question not found" });
-
-            var examId = question.ExamId;
-            await _questionRepository.DeleteAsync(id);
-
-            // Update exam total marks
-            var totalMarks = await _questionRepository.GetTotalMarksByExamIdAsync(examId);
-            var exam = await _examRepository.GetByIdAsync(examId);
-            if (exam != null)
+            try
             {
-                exam.TotalMarks = totalMarks;
-                await _examRepository.UpdateAsync(exam);
-            }
+                var question = await _questionRepository.GetByIdAsync(id);
+                if (question == null)
+                    return NotFound(new { message = "Question not found" });
 
-            return Ok(new { message = "Question deleted successfully" });
+                var examId = question.ExamId;
+
+                await _optionRepository.DeleteByQuestionIdAsync(id);
+                await _questionRepository.DeleteAsync(id);
+
+                
+
+                return Ok(new { message = "Question deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        // POST: api/Questions/bulk/exam/{examId} - Admin only
+        // POST: api/Questions/bulk/{examId}
         [HttpPost("bulk/{examId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> BulkCreateQuestions(int examId, [FromBody] List<CreateQuestionRequestDto> questions)
+        public async Task<IActionResult> BulkCreateQuestions(int examId, [FromBody] List<CreateQuestionWithOptionsDto> questions)
         {
-            foreach (var q in questions)
+            try
             {
-                var question = new Question
+                var exam = await _examRepository.GetByIdAsync(examId);
+                if (exam == null)
+                    return NotFound(new { message = "Exam not found" });
+
+                int successCount = 0;
+
+                foreach (var q in questions)
                 {
-                    QuestionText = q.QuestionText,
-                    OptionA = q.OptionA,
-                    OptionB = q.OptionB,
-                    OptionC = q.OptionC ?? "",
-                    OptionD = q.OptionD ?? "",
-                    CorrectAnswer = q.CorrectAnswer,
-                    Marks = q.Marks,
-                    CreatedAt = DateTime.Now,
-                    ExamId = examId
-                };
-                await _questionRepository.CreateAsync(question);
-            }
+                    // Validate
+                    if (q.Options == null || q.Options.Count < 2) continue;
+                    if (!q.Options.Any(o => o.IsCorrect)) continue;
 
-            // Update exam total marks
-            var totalMarks = await _questionRepository.GetTotalMarksByExamIdAsync(examId);
-            var exam = await _examRepository.GetByIdAsync(examId);
-            if (exam != null)
+                    // For MCQ, ensure only ONE correct answer
+                    if (q.QuestionType == "MCQ")
+                    {
+                        var correctCount = q.Options.Count(o => o.IsCorrect);
+                        if (correctCount > 1) continue;
+                    }
+
+                    // Create question
+                    var question = new Question
+                    {
+                        QuestionText = q.QuestionText,
+                        QuestionType = q.QuestionType,
+                        Marks = q.Marks,
+                        ExamId = examId,
+                        CreatedAt = DateTime.Now
+                    };
+
+                    var createdQuestion = await _questionRepository.CreateAsync(question);
+
+                    // Create options
+                    foreach (var optionDto in q.Options)
+                    {
+                        var option = new Option
+                        {
+                            QuestionId = createdQuestion.Id,
+                            OptionText = optionDto.OptionText,
+                            OptionOrder = optionDto.OptionOrder,
+                            IsCorrect = optionDto.IsCorrect,
+                            CreatedAt = DateTime.Now
+                        };
+                        await _optionRepository.CreateAsync(option);
+                    }
+                    successCount++;
+                }
+
+                return Ok(new { message = $"{successCount} questions added successfully" });
+            }
+            catch (Exception ex)
             {
-                exam.TotalMarks = totalMarks;
-                await _examRepository.UpdateAsync(exam);
+                return StatusCode(500, new { message = ex.Message });
             }
-
-            return Ok(new { message = $"{questions.Count} questions added successfully" });
         }
     }
 }

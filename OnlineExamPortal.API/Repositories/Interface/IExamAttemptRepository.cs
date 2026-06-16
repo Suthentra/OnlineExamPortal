@@ -6,7 +6,7 @@ namespace OnlineExamPortal.API.Repositories.Interface
     public interface IExamAttemptRepository
     {
         Task<ExamAttempt> StartExamAsync(int studentId, int examId);
-        Task<Answer> SubmitAnswerAsync(int attemptId, int questionId, string selectedOption);
+        Task<Answer> SubmitAnswerAsync(int attemptId, int questionId, List<int> selectedOptionIds);
         Task<ExamAttempt> SubmitExamAsync(int attemptId);
         Task<ExamAttempt?> GetAttemptByIdAsync(int attemptId);
         Task<List<ExamAttempt>> GetAttemptsByStudentIdAsync(int studentId);

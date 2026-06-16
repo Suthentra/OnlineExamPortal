@@ -89,72 +89,6 @@
         }
       }
     },
-    "/api/ExamAttempt/all-violations": {
-      "get": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/ExamAttempt/log-violation": {
-      "post": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViolationRequestDto"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViolationRequestDto"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViolationRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/ExamAttempt/violations/student/{studentId}": {
-      "get": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "parameters": [
-          {
-            "name": "studentId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/ExamAttempt/start": {
       "post": {
         "tags": [
@@ -186,6 +120,29 @@
         }
       }
     },
+    "/api/ExamAttempt/submit/{attemptId}": {
+      "post": {
+        "tags": [
+          "ExamAttempt"
+        ],
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/ExamAttempt/submit-answer": {
       "post": {
         "tags": [
@@ -210,29 +167,6 @@
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/ExamAttempt/submit/{attemptId}": {
-      "post": {
-        "tags": [
-          "ExamAttempt"
-        ],
-        "parameters": [
-          {
-            "name": "attemptId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -454,6 +388,35 @@
             "description": "OK"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "QuestionBank"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddToBankRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddToBankRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddToBankRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/QuestionBank/add-to-exam/{examId}": {
@@ -551,17 +514,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
               }
             }
           }
@@ -614,17 +577,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateQuestionRequestDto"
+                "$ref": "#/components/schemas/UpdateQuestionWithOptionsDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateQuestionRequestDto"
+                "$ref": "#/components/schemas/UpdateQuestionWithOptionsDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateQuestionRequestDto"
+                "$ref": "#/components/schemas/UpdateQuestionWithOptionsDto"
               }
             }
           }
@@ -679,7 +642,7 @@
               "schema": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                  "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
                 }
               }
             },
@@ -687,7 +650,7 @@
               "schema": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                  "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
                 }
               }
             },
@@ -695,7 +658,7 @@
               "schema": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/CreateQuestionRequestDto"
+                  "$ref": "#/components/schemas/CreateQuestionWithOptionsDto"
                 }
               }
             }
@@ -928,6 +891,35 @@
   },
   "components": {
     "schemas": {
+      "AddToBankRequest": {
+        "type": "object",
+        "properties": {
+          "questionText": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionDto"
+            },
+            "nullable": true
+          },
+          "marks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "difficulty": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateExamRequestDto": {
         "type": "object",
         "properties": {
@@ -958,36 +950,27 @@
         },
         "additionalProperties": false
       },
-      "CreateQuestionRequestDto": {
+      "CreateQuestionWithOptionsDto": {
         "type": "object",
         "properties": {
           "questionText": {
             "type": "string",
             "nullable": true
           },
-          "optionA": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionB": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionC": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionD": {
-            "type": "string",
-            "nullable": true
-          },
-          "correctAnswer": {
+          "questionType": {
             "type": "string",
             "nullable": true
           },
           "marks": {
             "type": "integer",
             "format": "int32"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionDto"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1024,6 +1007,23 @@
           "password": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OptionDto": {
+        "type": "object",
+        "properties": {
+          "optionText": {
+            "type": "string",
+            "nullable": true
+          },
+          "optionOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isCorrect": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -1071,8 +1071,12 @@
             "type": "integer",
             "format": "int32"
           },
-          "selectedOption": {
-            "type": "string",
+          "selectedOptionIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
             "nullable": true
           }
         },
@@ -1111,36 +1115,27 @@
         },
         "additionalProperties": false
       },
-      "UpdateQuestionRequestDto": {
+      "UpdateQuestionWithOptionsDto": {
         "type": "object",
         "properties": {
           "questionText": {
             "type": "string",
             "nullable": true
           },
-          "optionA": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionB": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionC": {
-            "type": "string",
-            "nullable": true
-          },
-          "optionD": {
-            "type": "string",
-            "nullable": true
-          },
-          "correctAnswer": {
+          "questionType": {
             "type": "string",
             "nullable": true
           },
           "marks": {
             "type": "integer",
             "format": "int32"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionDto"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1159,48 +1154,6 @@
           "userRole": {
             "type": "string",
             "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "ViolationRequestDto": {
-        "type": "object",
-        "properties": {
-          "attemptId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "studentId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "studentName": {
-            "type": "string",
-            "nullable": true
-          },
-          "studentEmail": {
-            "type": "string",
-            "nullable": true
-          },
-          "examId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "examTitle": {
-            "type": "string",
-            "nullable": true
-          },
-          "violationType": {
-            "type": "string",
-            "nullable": true
-          },
-          "violationCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "remainingWarnings": {
-            "type": "integer",
-            "format": "int32"
           }
         },
         "additionalProperties": false

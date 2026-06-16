@@ -1,164 +1,171 @@
-<!-- Loading State -->
-<div *ngIf="loading" class="text-center mt-5">
-  <div class="spinner-border text-primary" role="status">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-  <p class="mt-2">Loading your exam...</p>
-</div>
-
-<!-- Error Message -->
-<div *ngIf="errorMessage && !loading" class="alert alert-danger text-center mt-5">
-  <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
-  <h4>{{ errorMessage }}</h4>
-  <p>Redirecting to dashboard...</p>
-</div>
-
-<!-- Warning Counter Display -->
-<div class="warning-counter" *ngIf="!loading && !submitted && !errorMessage">
-  <i class="fas fa-shield-alt"></i>
-  ⚠️ Warnings: {{ fullScreenExitCount + tabSwitchCount }} / {{ maxFullScreenExits + maxTabSwitches }}
-  <span *ngIf="fullScreenExitCount >= 2 || tabSwitchCount >= 2" style="color: #ff6b6b;"> - Last chance!</span>
-</div>
-
-<!-- Fullscreen Button -->
-<button class="btn-fullscreen" (click)="enterFullscreen()" *ngIf="!isFullscreen && !submitted && !loading && !errorMessage">
-  <i class="fas fa-expand"></i> Enter Fullscreen Mode
-</button>
-
-<!-- Exam Content -->
-<div *ngIf="!loading && !submitted && !errorMessage" (contextmenu)="false" (copy)="false" (cut)="false" (paste)="false">
-  
-  <!-- Header with Timer -->
-  <div class="fixed-top bg-primary text-white p-3 shadow">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center flex-wrap">
-        <div>
-          <h4 class="mb-0">{{ examTitle }}</h4>
-          <small>Question {{ currentIndex + 1 }} of {{ questions.length }}</small>
-        </div>
-        <div class="text-center">
-          <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" 
-               style="width: 70px; height: 70px;">
-            <span class="fw-bold fs-3">{{ formatTime() }}</span>
-          </div>
-          <small>Time Left</small>
-        </div>
-        <div>
-          <span class="badge bg-light text-dark">Answered: {{ getAnsweredCount() }}/{{ questions.length }}</span>
-        </div>
+<div class="exam-wrapper" *ngIf="!loading && !examSubmitted && questions.length > 0">
+  <!-- Top Bar -->
+  <div class="exam-topbar">
+    <div class="exam-brand">
+      <i class="fas fa-graduation-cap"></i>
+      <span>{{ examTitle }}</span>
+    </div>
+    <div class="exam-meta">
+      <span class="question-progress">
+        <i class="fas fa-question-circle"></i>
+        {{ currentQuestionIndex + 1 }}/{{ questions.length }}
+      </span>
+      <div class="timer-container" [class.warning]="isTimerWarning()" [class.danger]="isTimerDanger()">
+        <i class="fas fa-hourglass-half"></i>
+        <span>{{ getFormattedTime() }}</span>
       </div>
     </div>
   </div>
 
-  <!-- Main Content -->
-  <div class="container mt-5 pt-5">
-    <div class="row">
-      
-      <!-- Question Panel -->
-      <div class="col-md-8">
-        <div class="card shadow">
-          <div class="card-body p-4">
-            <h5 class="text-muted">Question {{ currentIndex + 1 }} of {{ questions.length }}</h5>
-            <h4 class="mt-3">{{ getCurrentQuestion()?.questionText }}</h4>
-            <hr>
-            
-            <!-- Options -->
-            <div class="mt-4">
-              <div *ngFor="let opt of ['A', 'B', 'C', 'D']" 
-                   class="option-card border rounded p-3 mb-2"
-                   [class.selected]="getSelectedAnswerForCurrentQuestion() === opt"
-                   (click)="selectAnswer(opt)">
-                <div class="d-flex align-items-center">
-                  <div class="option-letter" [class.selected]="getSelectedAnswerForCurrentQuestion() === opt">
-                    {{ opt }}
-                  </div>
-                  <div class="option-text ms-3">
-                    {{ getCurrentQuestion()?.['option' + opt] }}
-                  </div>
-                </div>
-              </div>
-            </div>
+  <!-- Violation Banner -->
+  <div *ngIf="violationCount > 0" class="violation-banner" [class.warning]="violationCount < maxViolations" [class.danger]="violationCount >= maxViolations">
+    <i class="fas fa-skull"></i>
+    <span>
+      <strong>{{ violationCount }}/{{ maxViolations }}</strong> violation(s) detected!
+      <span *ngIf="violationCount < maxViolations">
+        {{ maxViolations - violationCount }} warning(s) remaining.
+      </span>
+      <span *ngIf="violationCount >= maxViolations" class="blink-text">
+        ⚠️ Exam will be auto-submitted!
+      </span>
+    </span>
+  </div>
 
-            <!-- Navigation Buttons -->
-            <div class="mt-4 d-flex justify-content-between">
-              <button class="btn btn-secondary px-4" (click)="prev()" [disabled]="currentIndex === 0">
-                ← Previous
-              </button>
-              <button class="btn btn-primary px-4" (click)="next()" [disabled]="currentIndex === questions.length - 1">
-                Next →
-              </button>
-            </div>
-          </div>
-        </div>
+  <!-- Progress -->
+  <div class="progress-section">
+    <div class="progress-header">
+      <span class="progress-label">Progress</span>
+      <span class="progress-percentage">{{ progress }}%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="progress" 
+           [style.background]="progress === 100 ? 'linear-gradient(90deg, #28a745, #20c997)' : 'linear-gradient(90deg, #4361ee, #3a0ca3)'">
       </div>
+    </div>
+    <div class="progress-stats">
+      <span><i class="fas fa-check-circle" style="color: #28a745;"></i> {{ getAnsweredCount() }} answered</span>
+      <span><i class="fas fa-circle" style="color: #6c757d;"></i> {{ questions.length - getAnsweredCount() }} remaining</span>
+    </div>
+  </div>
 
-      <!-- Navigator Panel -->
-      <div class="col-md-4">
-        <div class="card shadow">
-          <div class="card-header bg-info text-white">
-            <h5 class="mb-0">📋 Question Navigator</h5>
-          </div>
-          <div class="card-body">
-            <div class="d-flex flex-wrap gap-2">
-              <button *ngFor="let q of questions; let i = index"
-                      class="nav-btn"
-                      [class.answered]="selectedAnswers[i]"
-                      [class.not-answered]="!selectedAnswers[i]"
-                      [class.current]="currentIndex === i"
-                      (click)="goToQuestion(i)">
-                {{ i + 1 }}
-              </button>
-            </div>
-            <div class="mt-3 d-flex justify-content-between">
-              <small><span class="badge bg-success">●</span> Answered</small>
-              <small><span class="badge bg-secondary">●</span> Not Answered</small>
-              <small><span class="badge bg-primary">●</span> Current</small>
-            </div>
-          </div>
-        </div>
+  <!-- Question Navigator -->
+  <div class="question-grid">
+    <div *ngFor="let q of questions; let i = index" 
+         class="q-grid-item" 
+         [class.active]="i === currentQuestionIndex"
+         [class.answered]="isQuestionAnswered(i)"
+         (click)="goToQuestion(i)">
+      {{ i + 1 }}
+      <span class="q-status" *ngIf="isQuestionAnswered(i)">
+        <i class="fas fa-check"></i>
+      </span>
+    </div>
+  </div>
 
-        <!-- Warning Card -->
-        <div class="card mt-3 border-warning">
-          <div class="card-body">
-            <div class="d-flex align-items-center">
-              <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
-              <div>
-                <small class="text-muted">Exam Rules</small>
-                <p class="mb-0 small">• Fullscreen mode required<br>• Do not switch tabs<br>• 3 warnings = auto-submit<br>• Do not refresh the page<br>• Answers are auto-saved</p>
-              </div>
-            </div>
-          </div>
-        </div>
+  <!-- Question Card -->
+  <div class="question-card">
+    <div class="question-badge">
+      <span class="q-number">Question {{ currentQuestionIndex + 1 }}</span>
+      <span class="q-marks">
+        <i class="fas fa-star"></i> {{ questions[currentQuestionIndex]?.marks }} marks
+      </span>
+    </div>
 
-        <button class="btn btn-danger w-100 mt-3 py-3" (click)="submitExam()">
-          📤 Submit Exam
-        </button>
+    <div class="question-content">
+      <h3>{{ questions[currentQuestionIndex]?.questionText }}</h3>
+      <span *ngIf="isMultipleAnswer()" class="question-type-badge">
+        <i class="fas fa-check-square"></i> Select all that apply
+      </span>
+    </div>
+
+    <!-- Options - FIXED -->
+    <div class="options-grid">
+      <div *ngFor="let option of questions[currentQuestionIndex]?.options; let oi = index" 
+           class="option-card"
+           [class.selected]="isOptionSelected(questions[currentQuestionIndex]?.questionId, option.id)">
         
-        <button class="btn btn-link text-muted w-100 mt-2" (click)="logout()">
-          🚪 Logout
-        </button>
+        <div class="option-letter">{{ getOptionLetter(oi) }}</div>
+        <div class="option-text">{{ option.optionText }}</div>
+        
+        <!-- For MCQ (Single Answer) -->
+        <div class="option-check" *ngIf="!isMultipleAnswer()" (click)="onAnswerSelected(questions[currentQuestionIndex]?.questionId, option.id, false)">
+          <i *ngIf="isOptionSelected(questions[currentQuestionIndex]?.questionId, option.id)" 
+             class="fas fa-check-circle" style="color: #4361ee; font-size: 22px;"></i>
+          <i *ngIf="!isOptionSelected(questions[currentQuestionIndex]?.questionId, option.id)" 
+             class="far fa-circle" style="color: #ccc; font-size: 22px;"></i>
+        </div>
+        
+        <!-- For Multiple Answer - Only checkbox works -->
+        <div class="option-check" *ngIf="isMultipleAnswer()" (click)="$event.stopPropagation()">
+          <input type="checkbox" 
+                 [checked]="isOptionSelected(questions[currentQuestionIndex]?.questionId, option.id)"
+                 (change)="onAnswerSelected(questions[currentQuestionIndex]?.questionId, option.id, true)"
+                 class="checkbox-custom">
+        </div>
       </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-bar">
+      <button class="btn-nav btn-prev" (click)="previousQuestion()" [disabled]="currentQuestionIndex === 0">
+        <i class="fas fa-arrow-left"></i> Previous
+      </button>
+      <div class="action-center">
+        <span>{{ currentQuestionIndex + 1 }} / {{ questions.length }}</span>
+      </div>
+      <button class="btn-nav btn-next" (click)="nextQuestion()" *ngIf="currentQuestionIndex < questions.length - 1">
+        Next <i class="fas fa-arrow-right"></i>
+      </button>
+      <button class="btn-submit" (click)="submitExam()" *ngIf="currentQuestionIndex === questions.length - 1">
+        <i class="fas fa-paper-plane"></i> Submit
+      </button>
     </div>
   </div>
 </div>
 
-<!-- Submitted State -->
-<div *ngIf="submitted" class="text-center mt-5">
-  <div class="alert alert-success">
-    <i class="fas fa-check-circle fa-4x mb-3"></i>
-    <h2>✅ Exam Submitted!</h2>
-    <p>Your answers have been recorded.</p>
-    
-    <div class="alert alert-info mt-3">
-      <i class="fas fa-envelope fa-2x mb-2"></i>
-      <h4>📧 Results Sent to Your Email!</h4>
-      <p>Your exam results have been sent to <strong>{{ user?.email }}</strong></p>
-      <small>Please check your inbox (or spam folder).</small>
-    </div>
-    
-    <div class="spinner-border text-success mt-2" role="status">
-      <span class="visually-hidden">Redirecting...</span>
-    </div>
-    <p class="mt-2">Redirecting to results...</p>
+<!-- Loading -->
+<div *ngIf="loading" class="loading-screen">
+  <div class="loading-spinner">
+    <div class="spinner-ring"></div>
+    <div class="spinner-ring"></div>
+    <div class="spinner-ring"></div>
   </div>
+  <h3>Loading Your Exam...</h3>
+  <p>Please wait while we prepare your questions</p>
+</div>
+
+<!-- Error -->
+<div *ngIf="!loading && errorMessage" class="state-container error-state">
+  <i class="fas fa-exclamation-triangle"></i>
+  <h2>Something went wrong</h2>
+  <p>{{ errorMessage }}</p>
+  <button class="btn-primary" (click)="goToDashboard()">Go to Dashboard</button>
+</div>
+
+<!-- No Questions -->
+<div *ngIf="!loading && !examSubmitted && questions.length === 0 && !errorMessage" class="state-container empty-state">
+  <i class="fas fa-inbox"></i>
+  <h2>No Questions Found</h2>
+  <p>This exam doesn't have any questions yet.</p>
+  <button class="btn-primary" (click)="goToDashboard()">Go to Dashboard</button>
+</div>
+
+<!-- Submitted -->
+<div *ngIf="examSubmitted" class="state-container success-state">
+  <div class="success-icon">
+    <i class="fas fa-check-circle"></i>
+  </div>
+  <h2>Exam Submitted!</h2>
+  <p>Your answers have been recorded successfully.</p>
+  <div class="submitted-stats">
+    <div class="stat-item">
+      <span class="stat-value">{{ getAnsweredCount() }}</span>
+      <span class="stat-label">Answered</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">{{ questions.length }}</span>
+      <span class="stat-label">Total</span>
+    </div>
+  </div>
+  <button class="btn-primary" (click)="goToResults()">View Results</button>
 </div>

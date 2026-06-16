@@ -60,7 +60,7 @@ builder.Services.AddScoped<IExamAttemptRepository, SQLExamAttemptRepository>();
 // Register JWT Helper
 builder.Services.AddScoped<IJwtHelper, JwtHelper>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<ISectionRepository, SQLSectionRepository>();
+builder.Services.AddScoped<IOptionRepository, SQLOptionRepository>();
 // Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "THIS_IS_MY_SUPER_SECRET_KEY_12345";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];

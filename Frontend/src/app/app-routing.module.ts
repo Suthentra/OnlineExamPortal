@@ -11,13 +11,14 @@ import { AddQuestionsComponent } from './modules/admin/add-questions/add-questio
 import { EditExamComponent } from './modules/admin/edit-exam/edit-exam.component';
 import { ExamResultsComponent } from './modules/admin/exam-results/exam-results.component';
 import { StudentPerformanceComponent } from './modules/admin/student-performance/student-performance.component';
+import { StudentResultComponent } from './modules/admin/student-result/student-result.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'dashboard', component: DashboardComponent },
-  { path: 'exam/:id', component: ExamComponent },
+  { path: 'exam/:id', component: ExamComponent },  // ← This must be correct
   { path: 'results', component: ResultsComponent },
   { path: 'result-detail/:id', component: ResultsComponent },
   { path: 'admin', component: AdminDashboardComponent },
@@ -26,6 +27,7 @@ const routes: Routes = [
   { path: 'admin/edit-exam/:id', component: EditExamComponent },
   { path: 'admin/exam-results/:id', component: ExamResultsComponent },
   { path: 'admin/student-performance/:id', component: StudentPerformanceComponent },
+  { path: 'admin/student-result/:id', component: StudentResultComponent },
 ];
 
 @NgModule({
