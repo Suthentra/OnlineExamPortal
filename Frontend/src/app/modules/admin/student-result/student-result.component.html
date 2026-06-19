@@ -57,7 +57,7 @@
     <div class="alert text-center" 
          [class.alert-success]="result.isPassed" 
          [class.alert-danger]="!result.isPassed">
-      <h3>{{ result.isPassed ? '✅ PASSED' : '❌ FAILED' }}</h3>
+      <h3>{{ result.isPassed ? 'PASSED' : ' FAILED' }}</h3>
     </div>
 
     <!-- Question Details -->
@@ -82,10 +82,10 @@
               </div>
             </div>
             <div *ngIf="answer.isCorrect" class="text-success">
-              ✅ Correct! (+{{ answer.marksObtained }} marks)
+              Correct! (+{{ answer.marksObtained }} marks)
             </div>
             <div *ngIf="!answer.isCorrect" class="text-danger">
-              ❌ Wrong! Correct answer is {{ answer.correctAnswer }}
+              Wrong! Correct answer is {{ answer.correctAnswer }}
             </div>
           </div>
         </div>

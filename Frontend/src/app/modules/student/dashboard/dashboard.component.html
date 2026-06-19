@@ -36,7 +36,6 @@
         <p class="text-muted">Ready to test your knowledge today?</p>
       </div>
       <div class="header-actions">
-        <!-- Notification Bell -->
         <div class="notification-dropdown">
           <button class="btn-notification" (click)="toggleNotificationDropdown()">
             <i class="fas fa-bell"></i>
@@ -68,7 +67,6 @@
           </div>
         </div>
         
-        
         <button class="btn-logout" (click)="logout()">
           <i class="fas fa-sign-out-alt"></i> Logout
         </button>
@@ -77,12 +75,12 @@
 
     <div class="content">
       
-      <!-- DASHBOARD TAB -->
+      <!-- ========== DASHBOARD TAB ========== -->
       <div *ngIf="activeTab === 'dashboard'">
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon purple"><i class="fas fa-file-alt"></i></div>
-            <div class="stat-info"><h3>{{ availableExams }}</h3><p>Available Exams</p></div>
+            <div class="stat-info"><h3>{{ availableExamsList.length }}</h3><p>Available Exams</p></div>
           </div>
           <div class="stat-card">
             <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
@@ -107,35 +105,92 @@
         </div>
       </div>
 
-      <!-- MY EXAMS TAB -->
+      <!-- ========== MY EXAMS TAB ========== -->
       <div *ngIf="activeTab === 'exams'">
-        <div class="section-header"><h3>My Exams</h3></div>
-        <div *ngIf="loading" class="text-center mt-5"><div class="spinner-border text-primary"></div></div>
-        <div *ngIf="!loading && allExams.length === 0" class="alert alert-info">No exams available at the moment.</div>
-        <div class="exam-grid" *ngIf="!loading">
-          <div *ngFor="let exam of allExams" class="exam-card">
-            <div class="exam-header"><div class="exam-icon">📝</div><div class="exam-status" [class.completed-status]="isExamAttempted(exam.id)" [class.available-status]="!isExamAttempted(exam.id)">{{ isExamAttempted(exam.id) ? '✓ Completed' : 'Available' }}</div></div>
-            <div class="exam-body"><h4>{{ exam.title }}</h4><p>{{ exam.description | slice:0:80 }}...</p><div class="exam-meta"><span><i class="fas fa-clock"></i> {{ exam.durationInMinutes }} min</span><span><i class="fas fa-star"></i> {{ exam.totalMarks }} marks</span></div></div>
-            <div class="exam-footer"><button class="btn-start" *ngIf="!isExamAttempted(exam.id)" (click)="startExam(exam.id)"><i class="fas fa-play"></i> Start Exam</button><button class="btn-completed" *ngIf="isExamAttempted(exam.id)" disabled><i class="fas fa-check-circle"></i> Already Completed</button></div>
+        <div *ngIf="loading" class="text-center mt-5">
+          <div class="spinner-border text-primary"></div>
+          <p>Loading exams...</p>
+        </div>
+
+        <div *ngIf="!loading">
+          
+          <!-- ===== AVAILABLE EXAMS ===== -->
+          <div class="section-header" *ngIf="availableExamsList.length > 0">
+            <h3>Available Exams</h3>
           </div>
+
+          <div class="exam-grid" *ngIf="availableExamsList.length > 0">
+            <app-exam-card 
+              *ngFor="let exam of availableExamsList"
+              [exam]="exam"
+              [isAttempted]="false"
+              (examStarted)="startExam($event)">
+            </app-exam-card>
+          </div>
+
+          <!-- All Exams Completed Message -->
+          <div *ngIf="availableExamsList.length === 0 && attemptedExamsList.length > 0" class="alert alert-success" style="text-align: center;">
+            <i class="fas fa-check-circle" style="font-size: 24px; margin-right: 10px;"></i>
+            <strong>🎉 All Exams Completed!</strong>
+            <p style="margin: 8px 0 0 0; font-size: 14px;">You have completed all available exams. Check back later for new exams.</p>
+          </div>
+
+          <!-- No Exams Available Message -->
+          <div *ngIf="availableExamsList.length === 0 && attemptedExamsList.length === 0" class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No exams available at the moment.
+          </div>
+
+          <!-- ===== COMPLETED EXAMS ===== -->
+          <div class="attempted-section" *ngIf="attemptedExamsList.length > 0">
+            <div class="section-header">
+              <h3> Completed Exams ({{ attemptedExamsList.length }})</h3>
+            </div>
+            <div class="exam-grid">
+              <app-exam-card 
+                *ngFor="let exam of attemptedExamsList"
+                [exam]="exam"
+                [isAttempted]="true"
+                [result]="getExamResult(exam.id)"
+                (resultViewed)="viewResultDetail($event)">
+              </app-exam-card>
+            </div>
+          </div>
+
+          <!-- ===== FALLBACK: Show results directly if attemptedExamsList is empty but results exist ===== -->
+<div *ngIf="attemptedExamsList.length === 0 && results.length > 0" class="attempted-section">
+  <div class="section-header">
+    <h3>Completed Exams ({{ results.length }})</h3>
+  </div>
+  <div class="exam-grid">
+    <app-exam-card 
+      *ngFor="let result of results"
+      [exam]="{ id: result.examId, title: result.examTitle }"
+      [isAttempted]="true"
+      [result]="result"
+      (resultViewed)="viewResultDetail($event)">
+    </app-exam-card>
+  </div>
+</div>
+
         </div>
       </div>
 
-      <!-- MY RESULTS TAB -->
+      <!-- ========== MY RESULTS TAB ========== -->
       <div *ngIf="activeTab === 'results'">
-        <div class="section-header"><h3>My Exam Results</h3></div>
+        <div class="section-header"><h3>📊 My Exam Results</h3></div>
         <div *ngIf="loading" class="text-center mt-5"><div class="spinner-border text-primary"></div></div>
         <div *ngIf="!loading && results.length === 0" class="alert alert-info">You haven't taken any exams yet.</div>
         <div class="results-table-wrapper" *ngIf="!loading && results.length > 0">
           <table class="results-table">
-            <thead><tr><th>Exam Name</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Exam Name</th>
+                <th>Action</th>
+              </tr>
+            </thead>
             <tbody>
               <tr *ngFor="let result of results">
                 <td><strong>{{ result.examTitle }}</strong></td>
-                <td>{{ result.score }}/{{ result.totalMarks }}</td>
-                <td [class.text-success]="result.percentage >= 40" [class.text-danger]="result.percentage < 40">{{ result.percentage }}%</td>
-                <td><span class="status-badge" [class.passed]="result.isPassed" [class.failed]="!result.isPassed">{{ result.isPassed ? 'Passed ✅' : 'Failed ❌' }}</span></td>
-                <td>{{ result.submittedAt | date:'medium' }}</td>
                 <td><button class="btn-view" (click)="viewResultDetail(result.attemptId)">View Details</button></td>
               </tr>
             </tbody>
@@ -143,11 +198,40 @@
         </div>
       </div>
 
-      <!-- RANK TAB -->
+      <!-- ========== RANK TAB ========== -->
       <div *ngIf="activeTab === 'rank'">
         <div class="rank-container">
-          <div class="rank-card-large"><div class="rank-icon">{{ getRankIcon() }}</div><div class="rank-number">#{{ studentRank }}</div><div class="rank-label">Your Rank</div><div class="rank-total">out of {{ totalStudents }} students</div><div class="rank-message">{{ getRankMessage() }}</div></div>
-          <div class="performance-summary"><h3>Performance Summary</h3><div class="performance-stats"><div class="perf-item"><span class="perf-label">Average Score</span><span class="perf-value">{{ averageScore }}%</span><div class="progress-bar"><div class="progress-fill" [style.width.%]="averageScore"></div></div></div><div class="perf-item"><span class="perf-label">Highest Score</span><span class="perf-value">{{ highestScore }}%</span><div class="progress-bar"><div class="progress-fill" [style.width.%]="highestScore"></div></div></div><div class="perf-item"><span class="perf-label">Exams Completed</span><span class="perf-value">{{ completedExams }}</span></div><div class="perf-item"><span class="perf-label">Pass Rate</span><span class="perf-value">{{ getPassRate() }}%</span><div class="progress-bar"><div class="progress-fill" [style.width.%]="getPassRate()"></div></div></div></div></div>
+          <div class="rank-card-large">
+            <div class="rank-icon">{{ getRankIcon() }}</div>
+            <div class="rank-number">#{{ studentRank }}</div>
+            <div class="rank-label">Your Rank</div>
+            <div class="rank-total">out of {{ totalStudents }} students</div>
+            <div class="rank-message">{{ getRankMessage() }}</div>
+          </div>
+          <div class="performance-summary">
+            <h3>Performance Summary</h3>
+            <div class="performance-stats">
+              <div class="perf-item">
+                <span class="perf-label">Average Score</span>
+                <span class="perf-value">{{ averageScore }}%</span>
+                <div class="progress-bar"><div class="progress-fill" [style.width.%]="averageScore"></div></div>
+              </div>
+              <div class="perf-item">
+                <span class="perf-label">Highest Score</span>
+                <span class="perf-value">{{ highestScore }}%</span>
+                <div class="progress-bar"><div class="progress-fill" [style.width.%]="highestScore"></div></div>
+              </div>
+              <div class="perf-item">
+                <span class="perf-label">Exams Completed</span>
+                <span class="perf-value">{{ completedExams }}</span>
+              </div>
+              <div class="perf-item">
+                <span class="perf-label">Pass Rate</span>
+                <span class="perf-value">{{ getPassRate() }}%</span>
+                <div class="progress-bar"><div class="progress-fill" [style.width.%]="getPassRate()"></div></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,159 +1,199 @@
-<div class="container-fluid mt-3">
+<div class="performance-container">
   <!-- Header -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="performance-header">
     <div>
-      <h2>📊 Student Performance</h2>
+      <h1><i class="fas fa-users"></i> Student Performance</h1>
       <p class="text-muted">Exam: <strong>{{ examTitle }}</strong></p>
     </div>
-    <div>
-      <button class="btn btn-secondary me-2" (click)="goBack()">← Back</button>
-      <button class="btn btn-danger" (click)="logout()">Logout</button>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportToCSV()">
+        <i class="fas fa-download"></i> Export CSV
+      </button>
+      <button class="btn-back" (click)="goBack()">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
     </div>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="loading" class="text-center mt-5">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Loading...</span>
+  <!-- Stats Cards -->
+  <div class="stats-grid" *ngIf="!loading && students.length > 0">
+    <div class="stat-card">
+      <div class="stat-icon purple">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ totalStudents }}</h3>
+        <p>Total Students</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ passedCount }}</h3>
+        <p>Passed</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">
+        <i class="fas fa-times-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ failedCount }}</h3>
+        <p>Failed</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <i class="fas fa-percent"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ averageScore }}%</h3>
+        <p>Average Score</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <i class="fas fa-trophy"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ passRate }}%</h3>
+        <p>Pass Rate</p>
+      </div>
     </div>
   </div>
 
-  <!-- Performance Dashboard -->
-  <div *ngIf="!loading">
-    
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-      <div class="col-md-2">
-        <div class="card bg-primary text-white text-center">
-          <div class="card-body">
-            <h3>{{ totalStudents }}</h3>
-            <p>Total Students</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="card bg-success text-white text-center">
-          <div class="card-body">
-            <h3>{{ averageScore }}%</h3>
-            <p>Average Score</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="card bg-info text-white text-center">
-          <div class="card-body">
-            <h3>{{ highestScore }}%</h3>
-            <p>Highest Score</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card bg-warning text-white text-center">
-          <div class="card-body">
-            <h3>{{ passRate }}%</h3>
-            <p>Pass Rate</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card d-flex flex-row justify-content-between p-3">
-          <div class="text-center">
-            <h4 class="text-success">✅ {{ passedCount }}</h4>
-            <small>Passed</small>
-          </div>
-          <div class="text-center">
-            <h4 class="text-danger">❌ {{ failedCount }}</h4>
-            <small>Failed</small>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading student performance...</p>
+  </div>
 
-    <!-- Pass/Fail Progress Bar -->
-    <div class="card mb-4">
-      <div class="card-body">
-        <h5>Pass/Fail Distribution</h5>
-        <div class="progress" style="height: 30px;">
-          <div class="progress-bar bg-success" [style.width.%]="passRate">
-            Passed: {{ passedCount }} ({{ passRate }}%)
-          </div>
-          <div class="progress-bar bg-danger" [style.width.%]="100 - passRate">
-            Failed: {{ failedCount }} ({{ 100 - passRate }}%)
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- No Students -->
+  <div *ngIf="!loading && students.length === 0" class="empty-state">
+    <i class="fas fa-inbox"></i>
+    <h3>No Students Found</h3>
+    <p>No students have taken this exam yet.</p>
+    <button class="btn-primary" (click)="goBack()">Go Back</button>
+  </div>
 
-    <!-- Search and Export -->
-    <div class="row mb-3">
-      <div class="col-md-4">
-        <input type="text" class="form-control" placeholder="🔍 Search by name or email..." 
-               [(ngModel)]="searchTerm">
+  <!-- Students Table -->
+  <div *ngIf="!loading && students.length > 0" class="performance-card">
+    <!-- Search & Filter -->
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" 
+               placeholder="Search by student name or email..." 
+               [(ngModel)]="searchTerm"
+               (input)="filteredStudents">
       </div>
-      <div class="col-md-8 text-end">
-        <button class="btn btn-success" (click)="exportToCSV()">
-          📥 Export to CSV
+      <div class="filter-options">
+        <button class="filter-btn" [class.active]="statusFilter === 'all'" (click)="statusFilter = 'all'; filterStudents()">
+          All
+        </button>
+        <button class="filter-btn" [class.active]="statusFilter === 'passed'" (click)="statusFilter = 'passed'; filterStudents()">
+          <i class="fas fa-check-circle" style="color: #10b981;"></i> Passed
+        </button>
+        <button class="filter-btn" [class.active]="statusFilter === 'failed'" (click)="statusFilter = 'failed'; filterStudents()">
+          <i class="fas fa-times-circle" style="color: #dc2626;"></i> Failed
+        </button>
+        <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="searchTerm || statusFilter !== 'all'">
+          <i class="fas fa-times"></i> Clear
         </button>
       </div>
     </div>
 
-    <!-- Students Table -->
-    <div class="card">
-      <div class="card-header bg-dark text-white">
-        <h5 class="mb-0">Student List</h5>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="cursor: pointer;" (click)="changeSort('studentName')">
-                  Student Name {{ getSortIcon('studentName') }}
-                </th>
-                <th>Email</th>
-                <th style="cursor: pointer;" (click)="changeSort('score')">
-                  Score {{ getSortIcon('score') }}
-                </th>
-                <th style="cursor: pointer;" (click)="changeSort('percentage')">
-                  Percentage {{ getSortIcon('percentage') }}
-                </th>
-                <th style="cursor: pointer;" (click)="changeSort('isPassed')">
-                  Status {{ getSortIcon('isPassed') }}
-                </th>
-                <th style="cursor: pointer;" (click)="changeSort('submittedAt')">
-                  Submitted Date {{ getSortIcon('submittedAt') }}
-                </th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let student of filteredStudents">
-                <td><strong>{{ student.studentName }}</strong></td>
-                <td>{{ student.studentEmail }}</td>
-                <td>{{ student.score }}/{{ student.totalMarks }}</td>
-                <td [class.text-success]="student.percentage >= 40" 
-                    [class.text-danger]="student.percentage < 40">
+    <!-- Table -->
+    <div class="table-wrapper">
+      <table class="performance-table">
+        <thead>
+          <tr>
+            <th (click)="changeSort('studentName')">
+              Student Name <i class="fas" [ngClass]="getSortIcon('studentName')"></i>
+            </th>
+            <th (click)="changeSort('studentEmail')">
+              Email <i class="fas" [ngClass]="getSortIcon('studentEmail')"></i>
+            </th>
+            <th (click)="changeSort('score')">
+              Score <i class="fas" [ngClass]="getSortIcon('score')"></i>
+            </th>
+            <th (click)="changeSort('percentage')">
+              Percentage <i class="fas" [ngClass]="getSortIcon('percentage')"></i>
+            </th>
+            <th (click)="changeSort('isPassed')">
+              Status <i class="fas" [ngClass]="getSortIcon('isPassed')"></i>
+            </th>
+            <th (click)="changeSort('submittedAt')">
+              Submitted Date <i class="fas" [ngClass]="getSortIcon('submittedAt')"></i>
+            </th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let student of filteredStudents">
+            <td>
+              <div class="student-name">
+                <div class="avatar">{{ student.studentName?.charAt(0) || '?' }}</div>
+                <span>{{ student.studentName }}</span>
+              </div>
+            </td>
+            <td>{{ student.studentEmail }}</td>
+            <td>
+              <span class="score-badge">{{ student.score }}/{{ student.totalMarks }}</span>
+            </td>
+            <td>
+              <div class="percentage-cell">
+                <div class="progress-bar-mini">
+                  <div class="progress-fill" 
+                       [style.width.%]="student.percentage"
+                       [style.background]="student.percentage >= 40 ? '#10b981' : '#dc2626'">
+                  </div>
+                </div>
+                <span class="percentage-text" 
+                      [class.text-success]="student.percentage >= 40" 
+                      [class.text-danger]="student.percentage < 40">
                   {{ student.percentage }}%
-                </td>
-                <td>
-                  <span class="badge" [class.bg-success]="student.isPassed" [class.bg-danger]="!student.isPassed">
-                    {{ student.isPassed ? '✅ Passed' : '❌ Failed' }}
-                  </span>
-                </td>
-                <td>{{ student.submittedAt | date:'medium' }}</td>
-                <td>
-                  <button class="btn btn-sm btn-info" (click)="viewStudentDetails(student.studentId, student.attemptId)">
-                    View Details
-                  </button>
-                </td>
-            </tr>
-              <tr *ngIf="filteredStudents.length === 0">
-                <td colspan="7" class="text-center">No students found</td>
-              </tr>
-            </tbody>
-        </table>
-        </div>
-      </div>
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge" 
+                    [class.passed]="student.isPassed" 
+                    [class.failed]="!student.isPassed">
+                <i class="fas" [class.fa-check-circle]="student.isPassed" [class.fa-times-circle]="!student.isPassed"></i>
+                {{ student.isPassed ? 'Passed' : 'Failed' }}
+              </span>
+            </td>
+            <td>
+              <span class="date-text">
+                <i class="far fa-calendar-alt"></i>
+                {{ student.submittedAt | date:'MMM d, y' }}
+                <span class="time-text">{{ student.submittedAt | date:'h:mm a' }}</span>
+              </span>
+            </td>
+            <td>
+              <button class="btn-view" (click)="viewStudentDetails(student.studentId, student.attemptId)">
+                <i class="fas fa-eye"></i> View
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredStudents.length === 0">
+            <td colspan="7" class="no-data">
+              <i class="fas fa-search"></i>
+              <span>No students found matching your search</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="table-footer">
+      <span class="results-count">
+        Showing <strong>{{ filteredStudents.length }}</strong> of <strong>{{ students.length }}</strong> students
+      </span>
     </div>
   </div>
 </div>

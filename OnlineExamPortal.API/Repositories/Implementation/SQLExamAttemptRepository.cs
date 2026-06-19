@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.ExamAttempt;
+using OnlineExamPortal.API.Models.DTOs.Result;
 using OnlineExamPortal.API.Repositories.Interface;
 using System.Data;
 
@@ -40,6 +41,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
             return await GetAttemptByIdAsync(attemptId);
         }
 
+        // ===== FIXED: Changed parameter from string to List<int> =====
         public async Task<Answer> SubmitAnswerAsync(int attemptId, int questionId, List<int> selectedOptionIds)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
@@ -51,20 +53,18 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             // Determine if the answer is correct
             string checkCorrectSql = @"
-        DECLARE @CorrectOptionIds VARCHAR(200);
-        DECLARE @SelectedOptionIds VARCHAR(200) = @SelectedIds;
-        
-        -- Get all correct option IDs for this question
-        SELECT @CorrectOptionIds = STRING_AGG(CAST(Id AS VARCHAR), ',')
-        FROM Options 
-        WHERE QuestionId = @QuestionId AND IsCorrect = 1;
-        
-        -- Compare: both strings should have the same numbers
-        SELECT CASE 
-            WHEN @CorrectOptionIds IS NULL THEN 0
-            WHEN @CorrectOptionIds = @SelectedOptionIds THEN 1
-            ELSE 0 
-        END AS IsCorrect";
+                DECLARE @CorrectOptionIds VARCHAR(200);
+                DECLARE @SelectedOptionIds VARCHAR(200) = @SelectedIds;
+                
+                SELECT @CorrectOptionIds = STRING_AGG(CAST(Id AS VARCHAR), ',')
+                FROM Options 
+                WHERE QuestionId = @QuestionId AND IsCorrect = 1;
+                
+                SELECT CASE 
+                    WHEN @CorrectOptionIds IS NULL THEN 0
+                    WHEN @CorrectOptionIds = @SelectedOptionIds THEN 1
+                    ELSE 0 
+                END AS IsCorrect";
 
             using SqlCommand checkCmd = new SqlCommand(checkCorrectSql, conn);
             checkCmd.Parameters.AddWithValue("@QuestionId", questionId);
@@ -75,15 +75,15 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             // Save or update the answer
             string sql = @"
-        IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
-            UPDATE Answers 
-            SET SelectedOptionIds = @SelectedOptionIds, 
-                IsCorrect = @IsCorrect,
-                UpdatedAt = GETDATE()
-            WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
-        ELSE
-            INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOptionIds, IsCorrect, CreatedAt)
-            VALUES (@AttemptId, @QuestionId, @SelectedOptionIds, @IsCorrect, GETDATE())";
+                IF EXISTS (SELECT 1 FROM Answers WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId)
+                    UPDATE Answers 
+                    SET SelectedOptionIds = @SelectedOptionIds, 
+                        IsCorrect = @IsCorrect,
+                        UpdatedAt = GETDATE()
+                    WHERE ExamAttemptId = @AttemptId AND QuestionId = @QuestionId
+                ELSE
+                    INSERT INTO Answers (ExamAttemptId, QuestionId, SelectedOptionIds, IsCorrect, CreatedAt)
+                    VALUES (@AttemptId, @QuestionId, @SelectedOptionIds, @IsCorrect, GETDATE())";
 
             using SqlCommand cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@AttemptId", attemptId);
@@ -101,6 +101,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                 IsCorrect = isCorrect
             };
         }
+
         public async Task<ExamAttempt> SubmitExamAsync(int attemptId)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
@@ -108,11 +109,10 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             // Step 1: Calculate score
             string scoreSql = @"
-        SELECT ISNULL(SUM(q.Marks), 0) 
-        FROM Answers a 
-        JOIN Questions q ON a.QuestionId = q.Id 
-        WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;
-    ";
+                SELECT ISNULL(SUM(q.Marks), 0) 
+                FROM Answers a 
+                JOIN Questions q ON a.QuestionId = q.Id 
+                WHERE a.ExamAttemptId = @AttemptId AND a.IsCorrect = 1;";
 
             SqlCommand scoreCmd = new SqlCommand(scoreSql, conn);
             scoreCmd.Parameters.AddWithValue("@AttemptId", attemptId);
@@ -120,10 +120,9 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             // Step 2: Get total marks for the exam
             string totalMarksSql = @"
-        SELECT ISNULL(SUM(Marks), 0) 
-        FROM Questions 
-        WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);
-    ";
+                SELECT ISNULL(SUM(Marks), 0) 
+                FROM Questions 
+                WHERE ExamId = (SELECT ExamId FROM ExamAttempts WHERE Id = @AttemptId);";
 
             SqlCommand totalMarksCmd = new SqlCommand(totalMarksSql, conn);
             totalMarksCmd.Parameters.AddWithValue("@AttemptId", attemptId);
@@ -135,14 +134,13 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             // Step 4: Update the attempt
             string updateSql = @"
-        UPDATE ExamAttempts 
-        SET SubmittedAt = GETDATE(),
-            Score = @Score,
-            Status = 'Completed',
-            IsPassed = @IsPassed,
-            Percentage = @Percentage
-        WHERE Id = @AttemptId;
-    ";
+                UPDATE ExamAttempts 
+                SET SubmittedAt = GETDATE(),
+                    Score = @Score,
+                    Status = 'Completed',
+                    IsPassed = @IsPassed,
+                    Percentage = @Percentage
+                WHERE Id = @AttemptId;";
 
             SqlCommand updateCmd = new SqlCommand(updateSql, conn);
             updateCmd.Parameters.AddWithValue("@AttemptId", attemptId);
@@ -154,6 +152,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
             return await GetAttemptByIdAsync(attemptId);
         }
+
         public async Task<ExamAttempt?> GetAttemptByIdAsync(int attemptId)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
@@ -268,6 +267,47 @@ namespace OnlineExamPortal.API.Repositories.Implementation
             }
 
             return result;
+        }
+
+        // ===== ADD THIS METHOD =====
+        public async Task<List<StudentResultDto>> GetResultsByExamIdAsync(int examId)
+        {
+            var results = new List<StudentResultDto>();
+
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = @"
+                SELECT 
+                    u.Id AS StudentId,
+                    u.FullName AS StudentName,
+                    u.Email AS StudentEmail,
+                    ISNULL(ea.Score, 0) AS Score,
+                    ISNULL(ea.TotalMarks, 0) AS TotalMarks,
+                    ISNULL(ea.Percentage, 0) AS Percentage,
+                    ISNULL(ea.IsPassed, 0) AS IsPassed
+                FROM ExamAttempts ea
+                JOIN Users u ON ea.UserId = u.Id
+                WHERE ea.ExamId = @ExamId AND ea.Status = 'Completed'";
+
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@ExamId", examId);
+            await conn.OpenAsync();
+
+            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(new StudentResultDto
+                {
+                    StudentId = Convert.ToInt32(reader["StudentId"]),
+                    StudentName = reader["StudentName"]?.ToString() ?? "Unknown",
+                    StudentEmail = reader["StudentEmail"]?.ToString() ?? "",
+                    Score = Convert.ToInt32(reader["Score"]),
+                    TotalMarks = Convert.ToInt32(reader["TotalMarks"]),
+                    Percentage = Convert.ToDecimal(reader["Percentage"]),
+                    IsPassed = Convert.ToBoolean(reader["IsPassed"])
+                });
+            }
+
+            return results;
         }
     }
 }

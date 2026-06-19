@@ -1,0 +1,441 @@
+/* ========================================
+   EXAM CARD STYLES
+   ======================================== */
+
+.exam-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+
+.exam-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+
+.exam-card.attempted {
+  border-color: #e5e7eb;
+  opacity: 0.85;
+}
+
+.exam-card.attempted .exam-body h4 {
+  color: #6b7280;
+}
+
+/* ========================================
+   EXAM HEADER
+   ======================================== */
+
+.exam-header {
+  padding: 16px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.exam-icon {
+  font-size: 32px;
+}
+
+/* ========================================
+   EXAM STATUS
+   ======================================== */
+
+.exam-status {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.exam-status.coming-soon-status {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.exam-status.available-status {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.exam-status.expired-status {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.exam-status.completed-status {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+/* ========================================
+   EXAM BODY
+   ======================================== */
+
+.exam-body {
+  padding: 16px;
+}
+
+.exam-body h4 {
+  margin-bottom: 8px;
+  color: #1e2a4a;
+  font-size: 18px;
+}
+
+.exam-body p {
+  color: #4a5568;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ========================================
+   COMPACT SCHEDULE
+   ======================================== */
+
+.exam-schedule {
+  margin: 6px 0 0 0;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #495057;
+}
+
+.schedule-item i {
+  color: #4361ee;
+  font-size: 13px;
+  width: 16px;
+}
+
+.schedule-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.duration-badge {
+  background: #e9ecef;
+  color: #495057;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.duration-badge i {
+  font-size: 10px;
+  color: #6c757d;
+}
+
+.marks-badge {
+  background: #eef2ff;
+  color: #4361ee;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.marks-badge i {
+  font-size: 10px;
+}
+
+/* ========================================
+   EXAM RESULT
+   ======================================== */
+
+.exam-result {
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.result-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e2a4a;
+}
+
+.result-status {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.result-status.passed {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.result-status.failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ========================================
+   EXAM FOOTER
+   ======================================== */
+
+.exam-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn-start {
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+  color: white;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+}
+
+.btn-coming-soon {
+  background: #ffc107;
+  color: #856404;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* ===== EXPIRED BUTTON (NEW) ===== */
+.btn-expired {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.btn-view-result {
+  background: #e0e7ff;
+  color: #4361ee;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-view-result:hover {
+  background: #4361ee;
+  color: white;
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+body.dark-mode .exam-card {
+  background: #1e1e2e;
+  border-color: #4361ee;
+}
+
+body.dark-mode .exam-card.attempted {
+  border-color: #333;
+}
+
+body.dark-mode .exam-card.attempted .exam-body h4 {
+  color: #888;
+}
+
+body.dark-mode .exam-body h4 {
+  color: white;
+}
+
+body.dark-mode .exam-body p {
+  color: #aaa;
+}
+
+body.dark-mode .exam-schedule {
+  background: #2a2a3e;
+}
+
+body.dark-mode .schedule-item {
+  color: #ccc;
+}
+
+body.dark-mode .schedule-item i {
+  color: #7a9ef5;
+}
+
+body.dark-mode .duration-badge {
+  background: #3a3a4e;
+  color: #ccc;
+}
+
+body.dark-mode .duration-badge i {
+  color: #888;
+}
+
+body.dark-mode .marks-badge {
+  background: #1a2a4a;
+  color: #7a9ef5;
+}
+
+body.dark-mode .exam-status.available-status {
+  background: #1a3a2a;
+  color: #6fcf97;
+}
+
+body.dark-mode .exam-status.coming-soon-status {
+  background: #2a2a1a;
+  color: #ffc107;
+}
+
+body.dark-mode .exam-status.expired-status {
+  background: #3a1a1a;
+  color: #ff6b6b;
+}
+
+body.dark-mode .exam-status.completed-status {
+  background: #2a2a3e;
+  color: #888;
+}
+
+body.dark-mode .result-score {
+  color: white;
+}
+
+body.dark-mode .result-status.passed {
+  background: #1a3a2a;
+  color: #6fcf97;
+}
+
+body.dark-mode .result-status.failed {
+  background: #3a1a1a;
+  color: #ff6b6b;
+}
+
+body.dark-mode .btn-start {
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+}
+
+body.dark-mode .btn-coming-soon {
+  background: #2a2a1a;
+  color: #ffc107;
+}
+
+body.dark-mode .btn-expired {
+  background: #3a1a1a;
+  color: #ff6b6b;
+}
+
+body.dark-mode .btn-view-result {
+  background: #2a2a3e;
+  color: #7a9ef5;
+}
+
+body.dark-mode .btn-view-result:hover {
+  background: #4361ee;
+  color: white;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .exam-card {
+    border-width: 1px;
+  }
+  
+  .exam-header {
+    padding: 12px;
+  }
+  
+  .exam-body {
+    padding: 12px;
+  }
+  
+  .exam-body h4 {
+    font-size: 16px;
+  }
+  
+  .exam-footer {
+    padding: 10px 12px;
+  }
+
+  .exam-schedule {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 12px;
+  }
+
+  .schedule-item {
+    font-size: 11px;
+    width: 100%;
+  }
+
+  .schedule-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .duration-badge,
+  .marks-badge {
+    font-size: 10px;
+    padding: 1px 8px;
+  }
+}

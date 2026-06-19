@@ -16,6 +16,7 @@ namespace OnlineExamPortal.API.Models.Domain
         public DateTime CreatedAt { get; set; }
         public int UserId { get; set; }
 
+        public bool ResultsPublished { get; set; } = false;
         // Add this property
         public ICollection<Section> Sections { get; set; } = new List<Section>();
         

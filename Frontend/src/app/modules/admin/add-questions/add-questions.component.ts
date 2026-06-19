@@ -51,9 +51,19 @@ export class AddQuestionsComponent implements OnInit {
   editLoading = false;
   editMessage = '';
   editIsError = false;
+  editingQuestionType: string = 'MCQ';
 
   // Track focused option index
   focusedOptionIndex: number = -1;
+
+  // ===== CSV UPLOAD =====
+  csvProcessing = false;
+  csvQuestions: any[] = [];
+  csvFile: File | null = null;
+
+  // ===== MARKS LIMIT TRACKING =====
+  private marksLimitReached: boolean = false;
+  private marksLimitToastShown: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -83,6 +93,7 @@ export class AddQuestionsComponent implements OnInit {
       next: (data: any) => {
         this.examTitle = data.title;
         this.examTotalMarks = data.totalMarks;
+        this.checkMarksLimit();
       },
       error: (err) => {
         console.error('Error loading exam details:', err);
@@ -95,6 +106,7 @@ export class AddQuestionsComponent implements OnInit {
     this.api.getQuestionsByExam(this.examId).subscribe({
       next: (data: any) => {
         this.questions = data || [];
+        this.checkMarksLimit();
       },
       error: (err: any) => {
         console.error('Error loading questions:', err);
@@ -115,6 +127,53 @@ export class AddQuestionsComponent implements OnInit {
         this.toast.error('Failed to load question bank');
       }
     });
+  }
+
+  // ========== MARKS LIMIT CHECK ==========
+  
+  checkMarksLimit() {
+    const remaining = this.getRemainingMarks();
+    const used = this.getCurrentTotalMarks();
+    
+    if (used >= this.examTotalMarks && this.examTotalMarks > 0) {
+      this.marksLimitReached = true;
+      if (!this.marksLimitToastShown) {
+        this.marksLimitToastShown = true;
+        this.toast.warning(
+          `📊 <strong>Marks Limit Reached!</strong><br><br>` +
+          `All ${this.examTotalMarks} marks have been used.<br>` +
+          `You cannot add more questions to this exam.`
+        );
+      }
+    } else {
+      this.marksLimitReached = false;
+      this.marksLimitToastShown = false;
+    }
+  }
+
+  // ========== MARKS CALCULATION METHODS ==========
+  
+  getCurrentTotalMarks(): number {
+    return this.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+  }
+
+  getRemainingMarks(): number {
+    return this.examTotalMarks - this.getCurrentTotalMarks();
+  }
+
+  getUsedPercentage(): number {
+    if (this.examTotalMarks === 0) return 0;
+    return (this.getCurrentTotalMarks() / this.examTotalMarks) * 100;
+  }
+
+  // ===== CHECK IF MARKS LIMIT IS REACHED =====
+  isMarksLimitReached(): boolean {
+    return this.marksLimitReached;
+  }
+
+  // ===== CHECK IF CAN ADD MORE QUESTIONS =====
+  canAddQuestions(): boolean {
+    return !this.marksLimitReached && this.getRemainingMarks() > 0;
   }
 
   get filteredBankQuestions() {
@@ -140,10 +199,28 @@ export class AddQuestionsComponent implements OnInit {
   }
 
   addSelectedToExam() {
+    // Check if marks limit is reached
+    if (this.isMarksLimitReached()) {
+      this.toast.warning('Cannot add more questions. Marks limit reached!');
+      return;
+    }
+
     const selectedIds = this.filteredBankQuestions.filter((q: any) => q.selected).map((q: any) => q.id);
     
     if (selectedIds.length === 0) {
       this.toast.warning('Please select at least one question');
+      return;
+    }
+
+    // Check if selected questions fit within remaining marks
+    const selectedQuestions = this.filteredBankQuestions.filter((q: any) => q.selected);
+    const totalSelectedMarks = selectedQuestions.reduce((sum, q) => sum + q.marks, 0);
+    const remainingMarks = this.getRemainingMarks();
+
+    if (totalSelectedMarks > remainingMarks) {
+      this.toast.warning(
+        `Selected questions require ${totalSelectedMarks} marks but only ${remainingMarks} marks available.`
+      );
       return;
     }
 
@@ -163,21 +240,6 @@ export class AddQuestionsComponent implements OnInit {
         this.loading = false;
       }
     });
-  }
-
-  // ========== MARKS CALCULATION METHODS ==========
-  
-  getCurrentTotalMarks(): number {
-    return this.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
-  }
-
-  getRemainingMarks(): number {
-    return this.examTotalMarks - this.getCurrentTotalMarks();
-  }
-
-  getUsedPercentage(): number {
-    if (this.examTotalMarks === 0) return 0;
-    return (this.getCurrentTotalMarks() / this.examTotalMarks) * 100;
   }
 
   // ========== OPTION METHODS WITH KEYBOARD NAVIGATION ==========
@@ -206,11 +268,37 @@ export class AddQuestionsComponent implements OnInit {
   }
 
   onEditQuestionTypeChange() {
-    if (this.editingQuestion.questionType === 'TRUE_FALSE') {
+    if (this.editingQuestionType === 'TRUE_FALSE') {
       this.editingOptions = [
         { text: 'True', isCorrect: false },
         { text: 'False', isCorrect: false }
       ];
+    } else if (this.editingQuestionType === 'MCQ') {
+      if (this.editingOptions.length === 0 || this.editingOptions.every(o => !o.text)) {
+        this.editingOptions = [
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false }
+        ];
+      } else {
+        while (this.editingOptions.length < 4) {
+          this.editingOptions.push({ text: '', isCorrect: false });
+        }
+      }
+    } else if (this.editingQuestionType === 'MULTIPLE_ANSWER') {
+      if (this.editingOptions.length === 0 || this.editingOptions.every(o => !o.text)) {
+        this.editingOptions = [
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false }
+        ];
+      } else {
+        while (this.editingOptions.length < 4) {
+          this.editingOptions.push({ text: '', isCorrect: false });
+        }
+      }
     }
   }
 
@@ -238,6 +326,10 @@ export class AddQuestionsComponent implements OnInit {
     });
   }
 
+  toggleEditMultipleAnswerOption(index: number) {
+    this.editingOptions[index].isCorrect = !this.editingOptions[index].isCorrect;
+  }
+
   addOption() {
     if (this.questionType !== 'TRUE_FALSE') {
       this.options.push({ text: '', isCorrect: false });
@@ -257,13 +349,13 @@ export class AddQuestionsComponent implements OnInit {
   }
 
   addEditOption() {
-    if (this.editingQuestion.questionType !== 'TRUE_FALSE') {
+    if (this.editingQuestionType !== 'TRUE_FALSE') {
       this.editingOptions.push({ text: '', isCorrect: false });
     }
   }
 
   removeEditOption(index: number) {
-    if (this.editingQuestion.questionType === 'TRUE_FALSE') {
+    if (this.editingQuestionType === 'TRUE_FALSE') {
       this.toast.warning('True/False questions must have exactly 2 options');
       return;
     }
@@ -291,7 +383,6 @@ export class AddQuestionsComponent implements OnInit {
   }
 
   onOptionKeydown(event: KeyboardEvent, currentIndex: number) {
-    // Arrow Down - move to next option or add new
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       const nextIndex = currentIndex + 1;
@@ -301,7 +392,6 @@ export class AddQuestionsComponent implements OnInit {
           (inputs[nextIndex] as HTMLInputElement).focus();
         }
       } else {
-        // Add new option and focus it
         this.addOption();
         setTimeout(() => {
           const inputs = document.querySelectorAll('.option-row input[type="text"]');
@@ -311,8 +401,6 @@ export class AddQuestionsComponent implements OnInit {
         }, 100);
       }
     }
-    
-    // Arrow Up - move to previous option
     else if (event.key === 'ArrowUp') {
       event.preventDefault();
       const prevIndex = currentIndex - 1;
@@ -323,8 +411,6 @@ export class AddQuestionsComponent implements OnInit {
         }
       }
     }
-    
-    // Enter - move to next option or add new
     else if (event.key === 'Enter') {
       event.preventDefault();
       const nextIndex = currentIndex + 1;
@@ -364,6 +450,12 @@ export class AddQuestionsComponent implements OnInit {
   // ========== MANUAL QUESTION METHODS ==========
 
   async addManualQuestion() {
+    // Check if marks limit is reached
+    if (this.isMarksLimitReached()) {
+      this.toast.warning('Cannot add more questions. Marks limit reached!');
+      return;
+    }
+
     if (!this.newQuestion.questionText || this.newQuestion.questionText.trim() === '') {
       this.toast.warning('Please enter question text');
       return;
@@ -389,12 +481,25 @@ export class AddQuestionsComponent implements OnInit {
       }
     }
 
+    // Check if question marks fit within remaining marks
+    const questionMarks = this.newQuestion.marks || 10;
+    const remainingMarks = this.getRemainingMarks();
+    
+    if (questionMarks > remainingMarks) {
+      this.toast.warning(
+        `⚠️ Cannot add question!<br><br>` +
+        `Question requires <strong>${questionMarks}</strong> marks but only <strong>${remainingMarks}</strong> marks available.<br><br>` +
+        `Please reduce the marks or delete some questions.`
+      );
+      return;
+    }
+
     this.loading = true;
     
     const questionData = {
       questionText: this.newQuestion.questionText,
       questionType: this.questionType,
-      marks: this.newQuestion.marks || 10,
+      marks: questionMarks,
       options: this.options.map((opt: { text: string; isCorrect: boolean }, idx: number) => ({
         optionText: opt.text,
         optionOrder: idx + 1,
@@ -442,6 +547,7 @@ export class AddQuestionsComponent implements OnInit {
 
   openEditModal(question: any) {
     this.editingQuestion = { ...question };
+    this.editingQuestionType = question.questionType || 'MCQ';
     this.editingOptions = question.options.map((opt: any) => ({
       text: opt.optionText,
       isCorrect: opt.isCorrect
@@ -458,8 +564,10 @@ export class AddQuestionsComponent implements OnInit {
       marks: 10,
       sectionId: null
     };
+    this.editingQuestionType = 'MCQ';
     this.editingOptions = [];
     this.editMessage = '';
+    this.editIsError = false;
   }
 
   async updateQuestion() {
@@ -480,7 +588,7 @@ export class AddQuestionsComponent implements OnInit {
       return;
     }
 
-    if (this.editingQuestion.questionType === 'MCQ') {
+    if (this.editingQuestionType === 'MCQ') {
       const correctCount = this.editingOptions.filter(opt => opt.isCorrect).length;
       if (correctCount > 1) {
         this.toast.warning('Single Answer questions can only have ONE correct option');
@@ -491,11 +599,11 @@ export class AddQuestionsComponent implements OnInit {
     this.editLoading = true;
     
     const updateData = {
-      questionText: this.editingQuestion.questionText,
-      questionType: this.editingQuestion.questionType,
-      marks: this.editingQuestion.marks,
+      questionText: this.editingQuestion.questionText.trim(),
+      questionType: this.editingQuestionType,
+      marks: this.editingQuestion.marks || 10,
       options: this.editingOptions.map((opt: { text: string; isCorrect: boolean }, idx: number) => ({
-        optionText: opt.text,
+        optionText: opt.text.trim(),
         optionOrder: idx + 1,
         isCorrect: opt.isCorrect
       }))
@@ -536,11 +644,15 @@ export class AddQuestionsComponent implements OnInit {
     }
   }
 
+  // ============================================================
+  // ========== CSV UPLOAD ==========
+  // ============================================================
+
   downloadCSVTemplate() {
-    const template = `Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Correct Answers (comma separated),Marks
-"What is C#?","MCQ","Programming Language","Database","OS","Browser","","","1","10"
-"Angular is a framework.","TRUE_FALSE","True","False","","","","","1","5"
-"Which are programming languages?","MULTIPLE_ANSWER","JavaScript","HTML","Python","CSS","","","1,3","10"`;
+    const template = `Question,Type,Option A,Option B,Option C,Option D,Correct,Marks
+"What is 2+2?","MCQ","3","4","5","6","B","10"
+"Angular is a framework.","TRUE_FALSE","True","False","","","A","5"
+"Which are programming languages?","MULTIPLE_ANSWER","JavaScript","HTML","Python","CSS","A,C","10"`;
     
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -553,95 +665,388 @@ export class AddQuestionsComponent implements OnInit {
     this.toast.success('Template downloaded');
   }
 
-  triggerFileUpload() {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.click();
+  getCsvTotalMarks(): number {
+    return this.csvQuestions.reduce((sum, q) => sum + q.marks, 0);
   }
 
-  async uploadCSV(event: any) {
-    const file = event.target.files[0];
-    if (!file) return;
+  getCsvOptionsCount(question: any): number {
+    return question.options ? question.options.length : 0;
+  }
 
-    this.toast.showLoading('Reading CSV...');
+  getCsvCorrectCount(question: any): number {
+    return question.options ? question.options.filter((o: any) => o.isCorrect).length : 0;
+  }
+
+  getCsvPreviewQuestions(): any[] {
+    return this.csvQuestions.slice(0, 5);
+  }
+
+  hasMoreCsvQuestions(): boolean {
+    return this.csvQuestions.length > 5;
+  }
+
+  getRemainingCsvCount(): number {
+    return this.csvQuestions.length - 5;
+  }
+
+  uploadCSV(event: any) {
+    // Check if marks limit is reached
+    if (this.isMarksLimitReached()) {
+      this.toast.warning('Cannot upload more questions. Marks limit reached!');
+      event.target.value = '';
+      return;
+    }
+
+    const file = event.target.files[0];
+    if (!file) {
+      this.toast.warning('Please select a file');
+      return;
+    }
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (fileExtension !== 'csv') {
+      this.toast.error('Please upload a CSV file');
+      event.target.value = '';
+      return;
+    }
+
+    this.csvProcessing = true;
+    this.csvQuestions = [];
 
     const reader = new FileReader();
-    reader.onload = async (e: any) => {
-      const content = e.target.result;
-      const lines = content.split('\n');
-      
-      const questionsToAdd = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim() === '') continue;
+    
+    reader.onload = (e: any) => {
+      try {
+        const csvData = e.target.result;
+        const parsedQuestions = this.parseCSVQuestions(csvData);
         
-        const matches = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
-        if (matches && matches.length >= 7) {
-          const questionText = matches[0].replace(/^"|"$/g, '');
-          const questionType = matches[1].replace(/^"|"$/g, '');
-          const option1 = matches[2].replace(/^"|"$/g, '');
-          const option2 = matches[3].replace(/^"|"$/g, '');
-          const option3 = matches[4] ? matches[4].replace(/^"|"$/g, '') : '';
-          const option4 = matches[5] ? matches[5].replace(/^"|"$/g, '') : '';
-          const correctAnswers = matches[6] ? matches[6].replace(/^"|"$/g, '') : '1';
-          const marks = parseInt(matches[7]) || 10;
-          
-          const options = [];
-          if (option1) options.push({ optionText: option1, optionOrder: 1, isCorrect: correctAnswers.includes('1') });
-          if (option2) options.push({ optionText: option2, optionOrder: 2, isCorrect: correctAnswers.includes('2') });
-          if (option3) options.push({ optionText: option3, optionOrder: 3, isCorrect: correctAnswers.includes('3') });
-          if (option4) options.push({ optionText: option4, optionOrder: 4, isCorrect: correctAnswers.includes('4') });
-          
-          questionsToAdd.push({
-            questionText: questionText,
-            questionType: questionType === 'TRUE_FALSE' ? 'TRUE_FALSE' : (questionType === 'MULTIPLE_ANSWER' ? 'MULTIPLE_ANSWER' : 'MCQ'),
-            marks: marks,
-            options: options
-          });
+        if (parsedQuestions.length === 0) {
+          this.toast.warning('No valid questions found in CSV. Please check the format.');
+          this.csvProcessing = false;
+          event.target.value = '';
+          return;
         }
-      }
 
-      this.toast.closeLoading();
-
-      if (questionsToAdd.length === 0) {
-        this.toast.error('No valid questions found in CSV');
-        return;
-      }
-
-      const remainingMarks = this.getRemainingMarks();
-      const totalMarksInCSV = questionsToAdd.reduce((sum, q) => sum + q.marks, 0);
-
-      if (totalMarksInCSV > remainingMarks) {
-        this.toast.warning(`CSV has ${totalMarksInCSV} marks but only ${remainingMarks} marks available`);
-      }
-
-      if (confirm(`Add ${questionsToAdd.length} questions to this exam?`)) {
-        this.loading = true;
-        let completed = 0;
-        let hasError = false;
+        this.csvQuestions = parsedQuestions;
+        this.csvFile = file;
+        this.csvProcessing = false;
         
-        for (const q of questionsToAdd) {
-          this.api.createQuestion(this.examId, q).subscribe({
-            next: () => {
-              completed++;
-              if (completed === questionsToAdd.length && !hasError) {
-                this.toast.success(`${questionsToAdd.length} questions added successfully!`);
-                this.loading = false;
-                this.loadQuestions();
-                this.loadExamDetails();
-              }
-            },
-            error: (err: any) => {
-              if (!hasError) {
-                hasError = true;
-                this.toast.error('Failed to add some questions');
-                this.loading = false;
-              }
-            }
-          });
-        }
+        this.toast.success(`${parsedQuestions.length} questions loaded from CSV`);
+        this.showCSVPreviewAndConfirm();
+        
+      } catch (error) {
+        console.error('CSV Parse Error:', error);
+        this.toast.error('Failed to parse CSV. Please check the format.');
+        this.csvProcessing = false;
+        event.target.value = '';
       }
     };
+
+    reader.onerror = () => {
+      this.toast.error('Failed to read file');
+      this.csvProcessing = false;
+      event.target.value = '';
+    };
+
     reader.readAsText(file);
-    event.target.value = '';
+  }
+
+  private parseCSVQuestions(csvData: string): any[] {
+    const lines = csvData.split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length < 2) {
+      this.toast.warning('CSV file is empty or missing data rows');
+      return [];
+    }
+
+    const headerLine = lines[0];
+    const headers = this.parseCSVLine(headerLine);
+    
+    const headerMap: { [key: string]: string } = {
+      'question': 'question',
+      'type': 'type',
+      'option a': 'option_a',
+      'option b': 'option_b',
+      'option c': 'option_c',
+      'option d': 'option_d',
+      'correct': 'correct',
+      'marks': 'marks'
+    };
+
+    const colIndex: { [key: string]: number } = {};
+    for (const [key, value] of Object.entries(headerMap)) {
+      const index = headers.findIndex(h => h.trim().toLowerCase() === key);
+      colIndex[value] = index;
+    }
+
+    if (colIndex['question'] === -1) {
+      this.toast.error(`Could not find "Question" column. Found headers: ${headers.join(', ')}`);
+      return [];
+    }
+
+    if (colIndex['type'] === -1) {
+      this.toast.error(`Could not find "Type" column. Found headers: ${headers.join(', ')}`);
+      return [];
+    }
+
+    const questions: any[] = [];
+    let errorCount = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const values = this.parseCSVLine(lines[i]);
+        if (values.every(v => v.trim() === '')) continue;
+        
+        const question = this.createQuestionFromCSV(colIndex, values, i);
+        if (question) {
+          questions.push(question);
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error(`Error parsing line ${i + 1}:`, error);
+        errorCount++;
+      }
+    }
+
+    if (errorCount > 0) {
+      this.toast.warning(`${errorCount} row(s) had errors and were skipped.`);
+    }
+
+    return questions;
+  }
+
+  private parseCSVLine(line: string): string[] {
+    if (!line || line.trim() === '') return [];
+    
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  }
+
+  private createQuestionFromCSV(colIndex: { [key: string]: number }, values: string[], rowIndex: number): any | null {
+    const getValue = (key: string): string => {
+      const index = colIndex[key];
+      return index !== -1 && index < values.length ? values[index]?.trim() || '' : '';
+    };
+
+    const questionText = getValue('question');
+    const questionType = getValue('type').toUpperCase();
+    
+    let marks = 10;
+    const marksValue = getValue('marks');
+    if (marksValue) {
+      const parsed = parseInt(marksValue);
+      if (!isNaN(parsed)) marks = parsed;
+    }
+    
+    if (!questionText || questionText.length < 3) {
+      console.warn(`Row ${rowIndex + 1}: Invalid question text`);
+      return null;
+    }
+
+    const validTypes = ['MCQ', 'TRUE_FALSE', 'MULTIPLE_ANSWER'];
+    if (!validTypes.includes(questionType)) {
+      console.warn(`Row ${rowIndex + 1}: Invalid type "${questionType}"`);
+      return null;
+    }
+
+    const options: any[] = [];
+    const optionKeys = ['option_a', 'option_b', 'option_c', 'option_d'];
+    
+    for (let i = 0; i < optionKeys.length; i++) {
+      const optionText = getValue(optionKeys[i]);
+      if (optionText && optionText.trim() !== '') {
+        options.push({
+          optionText: optionText.trim(),
+          optionOrder: i + 1,
+          isCorrect: false
+        });
+      }
+    }
+
+    if (options.length < 2) {
+      console.warn(`Row ${rowIndex + 1}: At least 2 options required`);
+      return null;
+    }
+
+    if (questionType === 'TRUE_FALSE') {
+      if (options.length !== 2 || 
+          !['True', 'False'].includes(options[0].optionText) ||
+          !['True', 'False'].includes(options[1].optionText)) {
+        console.warn(`Row ${rowIndex + 1}: TRUE_FALSE must have 'True' and 'False'`);
+        return null;
+      }
+    }
+
+    const correctStr = getValue('correct').toUpperCase();
+    const correctIndices: number[] = [];
+    
+    if (correctStr) {
+      const parts = correctStr.split(',').map(s => s.trim());
+      for (const part of parts) {
+        const letterIndex = part.charCodeAt(0) - 65;
+        if (letterIndex >= 0 && letterIndex < options.length) {
+          correctIndices.push(letterIndex + 1);
+        }
+      }
+    }
+
+    if (correctIndices.length === 0) {
+      console.warn(`Row ${rowIndex + 1}: No valid correct answers`);
+      return null;
+    }
+
+    if (questionType === 'MCQ' && correctIndices.length > 1) {
+      console.warn(`Row ${rowIndex + 1}: MCQ can only have one correct answer`);
+      return null;
+    }
+
+    correctIndices.forEach(idx => {
+      const optionIndex = idx - 1;
+      if (optionIndex >= 0 && optionIndex < options.length) {
+        options[optionIndex].isCorrect = true;
+      }
+    });
+
+    return {
+      questionText: questionText.trim(),
+      questionType: questionType,
+      marks: marks,
+      options: options
+    };
+  }
+
+  showCSVPreviewAndConfirm() {
+    const questions = this.csvQuestions;
+    const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+    const remainingMarks = this.getRemainingMarks();
+    
+    // If no remaining marks, show warning
+    if (remainingMarks <= 0) {
+      this.toast.warning('No marks remaining to add questions!');
+      this.csvQuestions = [];
+      this.csvFile = null;
+      this.resetFileInput();
+      return;
+    }
+    
+    // Calculate how many questions can fit if not all
+    let marksUsed = 0;
+    let questionsFit = questions.length;
+    let canAddAll = totalMarks <= remainingMarks;
+    
+    if (!canAddAll) {
+      questionsFit = 0;
+      marksUsed = 0;
+      for (const q of questions) {
+        if (marksUsed + q.marks <= remainingMarks) {
+          marksUsed += q.marks;
+          questionsFit++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    this.toast.showCSVPreview(
+      questions.length,
+      totalMarks,
+      remainingMarks,
+      questionsFit,
+      canAddAll ? totalMarks : marksUsed
+    ).then(confirmed => {
+      if (confirmed) {
+        this.bulkUploadQuestions(questions, canAddAll);
+      } else {
+        this.csvQuestions = [];
+        this.csvFile = null;
+        this.resetFileInput();
+      }
+    });
+  }
+
+  private bulkUploadQuestions(questions: any[], addAll: boolean) {
+    // Double check marks limit before uploading
+    if (this.isMarksLimitReached()) {
+      this.toast.warning('Cannot upload more questions. Marks limit reached!');
+      this.csvProcessing = false;
+      this.loading = false;
+      this.csvQuestions = [];
+      this.resetFileInput();
+      return;
+    }
+
+    this.csvProcessing = true;
+    this.loading = true;
+
+    let questionsToAdd = questions;
+    
+    if (!addAll) {
+      const remainingMarks = this.getRemainingMarks();
+      let marksUsed = 0;
+      questionsToAdd = [];
+      
+      for (const q of questions) {
+        if (marksUsed + q.marks <= remainingMarks) {
+          questionsToAdd.push(q);
+          marksUsed += q.marks;
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (questionsToAdd.length === 0) {
+      this.toast.warning('No questions to add');
+      this.csvProcessing = false;
+      this.loading = false;
+      return;
+    }
+
+    this.api.bulkCreateQuestions(this.examId, questionsToAdd).subscribe({
+      next: (response: any) => {
+        this.toast.success(`${questionsToAdd.length} questions uploaded successfully!`);
+        this.csvProcessing = false;
+        this.loading = false;
+        this.csvQuestions = [];
+        this.csvFile = null;
+        this.resetFileInput();
+        this.loadQuestions();
+        this.loadExamDetails();
+      },
+      error: (err) => {
+        this.csvProcessing = false;
+        this.loading = false;
+        this.toast.error(err.error?.message || 'Failed to upload questions');
+        console.error('Bulk upload error:', err);
+      }
+    });
+  }
+
+  resetFileInput() {
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
 
   getSectionName(sectionId: number): string {

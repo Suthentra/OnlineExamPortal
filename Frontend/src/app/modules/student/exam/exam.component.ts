@@ -4,6 +4,8 @@ import { ApiService } from '../../../shared/services/api.service';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import confetti from 'canvas-confetti';
+import { Subject, of } from 'rxjs';
+import { map, catchError, finalize, takeUntil, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-exam',
@@ -32,6 +34,14 @@ export class ExamComponent implements OnInit, OnDestroy {
   violationCount: number = 0;
   maxViolations: number = 3;
   private violationLock: boolean = false;
+  
+  // ===== ADDED: Track if user is actively on the page =====
+  private isPageVisible: boolean = true;
+  private isWindowFocused: boolean = true;
+  private lastViolationTime: number = 0;
+  private violationCooldown: number = 2000; // 2 seconds cooldown between violations
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -53,6 +63,133 @@ export class ExamComponent implements OnInit, OnDestroy {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.removeFullscreenDetection();
     this.enableKeyboardShortcuts();
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ========== FULLSCREEN ==========
+
+  enterFullscreen() {
+    if (this.examSubmitted) return;
+    
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen()
+        .then(() => {
+          this.isFullscreen = true;
+          console.log('Fullscreen mode activated');
+        })
+        .catch((err) => {
+          console.log('Fullscreen request failed:', err);
+          if (!this.examSubmitted && this.violationCount < this.maxViolations) {
+            setTimeout(() => this.enterFullscreen(), 300);
+          }
+        });
+    }
+  }
+
+  // ========== FULLSCREEN DETECTION ==========
+
+  setupFullscreenDetection() {
+    document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
+    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    window.addEventListener('blur', this.handleWindowBlur.bind(this));
+    window.addEventListener('focus', this.handleWindowFocus.bind(this));
+  }
+
+  removeFullscreenDetection() {
+    document.removeEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    window.removeEventListener('blur', this.handleWindowBlur.bind(this));
+    window.removeEventListener('focus', this.handleWindowFocus.bind(this));
+  }
+
+  // ===== 1. FULLSCREEN EXIT DETECTION =====
+  handleFullscreenChange() {
+    if (this.examSubmitted) return;
+    
+    const wasFullscreen = this.isFullscreen;
+    this.isFullscreen = !!document.fullscreenElement;
+    
+    console.log('Fullscreen changed:', { wasFullscreen, isFullscreen: this.isFullscreen });
+    
+    if (wasFullscreen && !this.isFullscreen && !this.examSubmitted) {
+      console.log('🔴 FULLSCREEN_EXIT detected!');
+      this.logViolation('FULLSCREEN_EXIT');
+    }
+  }
+
+  // ===== 2. TAB SWITCH DETECTION (FIXED) =====
+  handleVisibilityChange() {
+    if (this.examSubmitted) return;
+    
+    const wasVisible = this.isPageVisible;
+    this.isPageVisible = !document.hidden;
+    
+    console.log('Visibility changed:', { wasVisible, isVisible: this.isPageVisible });
+    
+    // Only log violation when switching FROM visible TO hidden
+    if (wasVisible && document.hidden && !this.examSubmitted) {
+      console.log('🔴 TAB_SWITCH detected!');
+      this.logViolation('TAB_SWITCH');
+    }
+  }
+
+  // ===== 3. WINDOW BLUR DETECTION =====
+  handleWindowBlur() {
+    if (this.examSubmitted) return;
+    
+    this.isWindowFocused = false;
+    console.log('🔴 WINDOW_BLUR detected!');
+    this.logViolation('WINDOW_BLUR');
+  }
+
+  // ===== 4. WINDOW FOCUS DETECTION =====
+  handleWindowFocus() {
+    this.isWindowFocused = true;
+    console.log(' Window focused again');
+    
+    // Try to re-enter fullscreen if user comes back
+    if (!this.isFullscreen && !this.examSubmitted && this.violationCount < this.maxViolations) {
+      setTimeout(() => {
+        this.enterFullscreen();
+      }, 500);
+    }
+  }
+
+  // ========== DISABLE KEYBOARD SHORTCUTS ==========
+
+  disableKeyboardShortcuts() {
+    document.addEventListener('keydown', this.preventKeyboardShortcuts.bind(this));
+  }
+
+  enableKeyboardShortcuts() {
+    document.removeEventListener('keydown', this.preventKeyboardShortcuts.bind(this));
+  }
+
+  preventKeyboardShortcuts(event: KeyboardEvent) {
+    if (this.examSubmitted) return;
+
+    if (event.ctrlKey && ['c', 'C', 'v', 'V', 'x', 'X', 'u', 'U', 's', 'S', 'p', 'P'].includes(event.key)) {
+      event.preventDefault();
+      this.toast.warning('Keyboard shortcuts are disabled during the exam.');
+    }
+
+    if (event.key === 'F12') {
+      event.preventDefault();
+      this.toast.warning('Developer tools are disabled during the exam.');
+    }
+
+    if (event.key === 'PrintScreen') {
+      event.preventDefault();
+      this.toast.warning('Print screen is disabled during the exam.');
+    }
+
+    // Prevent Alt+Tab detection (can't prevent but we can warn)
+    if (event.altKey && event.key === 'Tab') {
+      event.preventDefault();
+      this.toast.warning('Alt+Tab is not allowed during the exam.');
+    }
   }
 
   // ===== DISABLE RIGHT CLICK, COPY, PASTE =====
@@ -89,89 +226,17 @@ export class ExamComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ===== DISABLE KEYBOARD SHORTCUTS =====
-
-  disableKeyboardShortcuts() {
-    document.addEventListener('keydown', this.preventKeyboardShortcuts.bind(this));
-  }
-
-  enableKeyboardShortcuts() {
-    document.removeEventListener('keydown', this.preventKeyboardShortcuts.bind(this));
-  }
-
-  preventKeyboardShortcuts(event: KeyboardEvent) {
-    if (this.examSubmitted) return;
-
-    if (event.ctrlKey && ['c', 'C', 'v', 'V', 'x', 'X', 'u', 'U', 's', 'S', 'p', 'P'].includes(event.key)) {
-      event.preventDefault();
-      this.toast.warning('Keyboard shortcuts are disabled during the exam.');
-    }
-
-    if (event.key === 'F12') {
-      event.preventDefault();
-      this.toast.warning('Developer tools are disabled during the exam.');
-    }
-
-    if (event.key === 'PrintScreen') {
-      event.preventDefault();
-      this.toast.warning('Print screen is disabled during the exam.');
-    }
-  }
-
-  // ===== AUTO FULLSCREEN =====
-
-  enterFullscreen() {
-    if (this.examSubmitted) return;
-    
-    const element = document.documentElement;
-    if (element.requestFullscreen) {
-      element.requestFullscreen()
-        .then(() => {
-          this.isFullscreen = true;
-        })
-        .catch((err) => {
-          console.log('Fullscreen request failed:', err);
-          if (!this.examSubmitted && this.violationCount < this.maxViolations) {
-            setTimeout(() => this.enterFullscreen(), 300);
-          }
-        });
-    }
-  }
-
-  // ===== FULLSCREEN DETECTION =====
-
-  setupFullscreenDetection() {
-    document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    window.addEventListener('blur', this.handleWindowBlur.bind(this));
-  }
-
-  removeFullscreenDetection() {
-    document.removeEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    window.removeEventListener('blur', this.handleWindowBlur.bind(this));
-  }
-
-  handleFullscreenChange() {
-    if (this.examSubmitted) return;
-    this.isFullscreen = !!document.fullscreenElement;
-    
-    if (!this.isFullscreen && !this.examSubmitted) {
-      this.logViolation('FULLSCREEN_EXIT');
-    }
-  }
-
-  handleVisibilityChange() {
-    if (this.examSubmitted || !this.isFullscreen) return;
-    if (document.hidden) this.logViolation('TAB_SWITCH');
-  }
-
-  handleWindowBlur() {
-    if (this.examSubmitted || !this.isFullscreen) return;
-    this.logViolation('WINDOW_BLUR');
-  }
+  // ========== LOG VIOLATION (IMPROVED) ==========
 
   logViolation(type: string) {
+    // Prevent multiple violations in quick succession
+    const now = Date.now();
+    if (now - this.lastViolationTime < this.violationCooldown) {
+      console.log('⏳ Violation cooldown active, skipping...');
+      return;
+    }
+    this.lastViolationTime = now;
+
     if (this.examSubmitted || this.violationLock) return;
     this.violationLock = true;
     this.violationCount++;
@@ -191,11 +256,21 @@ export class ExamComponent implements OnInit, OnDestroy {
       remainingWarnings: this.maxViolations - this.violationCount
     };
 
+    // Save to localStorage
     let violations = JSON.parse(localStorage.getItem('violations') || '[]');
     violations.push(violation);
     localStorage.setItem('violations', JSON.stringify(violations));
 
+    // Send to API
+    this.api.logViolation(violation).subscribe({
+      next: () => console.log('Violation logged to server'),
+      error: (err) => console.error('Failed to log violation:', err)
+    });
+
+    console.log(`🚨 Violation ${this.violationCount}/${this.maxViolations}: ${type}`);
+
     if (this.violationCount >= this.maxViolations) {
+      // Auto-submit exam
       this.toast.errorModal(
         '🚫 <strong>YOU HAVE EXCEEDED THE MAXIMUM VIOLATIONS!</strong><br><br>' +
         'Your exam will now be submitted automatically.<br><br>' +
@@ -208,13 +283,16 @@ export class ExamComponent implements OnInit, OnDestroy {
       }, 1500);
     } else {
       const remaining = this.maxViolations - this.violationCount;
+      const typeName = type.replace('_', ' ');
       this.toast.warning(
-        `💀 <strong>Violation ${this.violationCount}/${this.maxViolations}</strong><br><br>` +
-        `${type.replace('_', ' ')} detected.<br><br>` +
-        `<strong>${remaining}</strong> warning(s) remaining.`,
+        `🚨 <strong>Violation ${this.violationCount}/${this.maxViolations}</strong><br><br>` +
+        `⚠️ ${typeName} detected.<br><br>` +
+        `You have <strong>${remaining}</strong> warning(s) remaining.<br><br>` +
+        `Please stay in fullscreen mode and focus on the exam.`,
         '⚠️ Warning'
       );
       
+      // Try to re-enter fullscreen
       setTimeout(() => {
         if (!this.examSubmitted && this.violationCount < this.maxViolations) {
           this.enterFullscreen();
@@ -225,49 +303,9 @@ export class ExamComponent implements OnInit, OnDestroy {
     setTimeout(() => { this.violationLock = false; }, 500);
   }
 
-  // ===== CONFETTI METHODS =====
-
-  fireCelebration() {
-    const duration = 3000;
-    const end = Date.now() + duration;
-
-    (function frame() {
-      confetti({
-        particleCount: 7,
-        startVelocity: 30,
-        spread: 360,
-        origin: { 
-          x: Math.random(),
-          y: Math.random() * 0.5
-        }
-      });
-      
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    })();
-  }
-
-  // ===== TIMER ALERT METHODS =====
-
-  showTimerAlert() {
-    this.toast.warning(
-      '⏰ <strong>TIME IS RUNNING OUT!</strong><br><br>' +
-      'You have less than 1 minute remaining.<br><br>' +
-      'Please complete your exam quickly.',
-      '⚠️ Time Warning'
-    );
-    
-    const timerElement = document.querySelector('.timer-container');
-    if (timerElement) {
-      timerElement.classList.add('timer-flash');
-      setTimeout(() => {
-        timerElement.classList.remove('timer-flash');
-      }, 3000);
-    }
-  }
-
-  // ===== EXAM =====
+  // ============================================================
+  // ========== EXAM LOGIC ==========
+  // ============================================================
 
   startExam() {
     const studentId = this.auth.getUser()?.userId;
@@ -277,38 +315,51 @@ export class ExamComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.toast.showLoading('Loading exam...');
-
-    this.api.startExam({ studentId, examId: this.examId }).subscribe({
-      next: (data: any) => {
-        this.toast.closeLoading();
-        this.exam = data;
-        this.examTitle = data.examTitle || 'Exam';
-        this.questions = data.questions || [];
-        this.timeRemaining = (data.remainingMinutes || 60) * 60;
-        this.loading = false;
-        this.updateProgress();
-        this.startTimer();
-        
-        setTimeout(() => {
-          this.enterFullscreen();
-        }, 500);
-      },
-      error: (err) => {
-        this.toast.closeLoading();
-        console.error('Error starting exam:', err);
-        
-        if (err.error?.message?.includes('already attempted')) {
-          this.toast.warning('You have already completed this exam.');
-          this.router.navigate(['/dashboard']);
-          return;
+    this.api.startExam({ studentId, examId: this.examId })
+      .pipe(
+        tap(() => this.toast.showLoading('Loading exam...')),
+        map((data: any) => ({
+          exam: data,
+          examTitle: data.examTitle || 'Exam',
+          questions: data.questions || [],
+          timeRemaining: (data.remainingMinutes || 60) * 60
+        })),
+        catchError((err) => {
+          this.toast.closeLoading();
+          console.error('Error starting exam:', err);
+          
+          if (err.error?.message?.includes('already attempted')) {
+            this.toast.warning('You have already completed this exam.');
+            this.router.navigate(['/dashboard']);
+          } else {
+            this.errorMessage = err.error?.message || 'Failed to start exam.';
+            this.toast.error(this.errorMessage);
+          }
+          return of(null);
+        }),
+        finalize(() => {
+          this.loading = false;
+          this.toast.closeLoading();
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (result) => {
+          if (result) {
+            this.exam = result.exam;
+            this.examTitle = result.examTitle;
+            this.questions = result.questions;
+            this.timeRemaining = result.timeRemaining;
+            this.loading = false;
+            this.updateProgress();
+            this.startTimer();
+            
+            setTimeout(() => {
+              this.enterFullscreen();
+            }, 500);
+          }
         }
-        
-        this.errorMessage = err.error?.message || 'Failed to start exam.';
-        this.loading = false;
-        this.toast.error(this.errorMessage);
-      }
-    });
+      });
   }
 
   startTimer() {
@@ -339,6 +390,23 @@ export class ExamComponent implements OnInit, OnDestroy {
         }, 1500);
       }
     }, 1000);
+  }
+
+  showTimerAlert() {
+    this.toast.warning(
+      '⏰ <strong>TIME IS RUNNING OUT!</strong><br><br>' +
+      'You have less than 1 minute remaining.<br><br>' +
+      'Please complete your exam quickly.',
+      '⚠️ Time Warning'
+    );
+    
+    const timerElement = document.querySelector('.timer-container');
+    if (timerElement) {
+      timerElement.classList.add('timer-flash');
+      setTimeout(() => {
+        timerElement.classList.remove('timer-flash');
+      }, 3000);
+    }
   }
 
   getFormattedTime(): string {
@@ -375,14 +443,12 @@ export class ExamComponent implements OnInit, OnDestroy {
     let current = this.answers.get(qId) || [];
     
     if (multiple) {
-      // Toggle selection for multiple answers
       if (current.includes(optId)) {
         current = current.filter(id => id !== optId);
       } else {
         current = [...current, optId];
       }
     } else {
-      // Single answer - replace
       current = [optId];
     }
     
@@ -403,9 +469,18 @@ export class ExamComponent implements OnInit, OnDestroy {
       attemptId: attemptId,
       questionId: qId,
       selectedOptionIds: selected
-    }).subscribe({
-      next: () => {},
-      error: err => console.error('Save error:', err)
+    })
+    .pipe(
+      catchError((err) => {
+        console.error('Save error:', err);
+        return of(null);
+      }),
+      takeUntil(this.destroy$)
+    )
+    .subscribe({
+      next: () => {
+        // Answer saved successfully
+      }
     });
   }
 
@@ -430,7 +505,7 @@ export class ExamComponent implements OnInit, OnDestroy {
     return q ? this.answers.has(q.id || q.questionId) : false;
   }
 
-  // ===== SUBMIT METHODS =====
+  // ========== SUBMIT METHODS ==========
 
   async submitExam() {
     if (this.examSubmitted || !this.exam) return;
@@ -454,32 +529,66 @@ export class ExamComponent implements OnInit, OnDestroy {
 
     this.toast.showLoading('Submitting...');
 
-    this.api.submitExam(this.exam.id).subscribe({
-      next: (res: any) => {
-        this.toast.closeLoading();
-        this.examSubmitted = true;
-        clearInterval(this.timerInterval);
-        if (document.fullscreenElement) document.exitFullscreen();
+    this.api.submitExam(this.exam.id)
+      .pipe(
+        map((res: any) => ({
+          ...res,
+          percentage: Number(res.percentage).toFixed(2)
+        })),
+        catchError((err) => {
+          this.toast.closeLoading();
+          this.toast.error(err.error?.message || 'Submission failed. Please try again.');
+          return of(null);
+        }),
+        finalize(() => this.toast.closeLoading()),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (res) => {
+          if (res) {
+            this.examSubmitted = true;
+            clearInterval(this.timerInterval);
+            if (document.fullscreenElement) document.exitFullscreen();
 
-        const roundedPercentage = Number(res.percentage).toFixed(2);
+            if (res.isPassed) {
+              this.fireCelebration();
+            }
 
-        if (res.isPassed) {
-          this.fireCelebration();
+            this.toast.successModal(
+              `Score: ${res.score}/${res.totalMarks}\nPercentage: ${res.percentage}%\n${res.isPassed ? ' PASSED ' : 'FAILED'}`,
+              res.isPassed ? '🎉 Exam Passed!' : 'Exam Submitted!'
+            );
+
+            setTimeout(() => this.router.navigate(['/results']), 3000);
+          }
         }
-
-        this.toast.successModal(
-          `Score: ${res.score}/${res.totalMarks}\nPercentage: ${roundedPercentage}%\n${res.isPassed ? '✅ PASSED 🎉' : '❌ FAILED'}`,
-          res.isPassed ? '🎉 Exam Passed!' : 'Exam Submitted!'
-        );
-
-        setTimeout(() => this.router.navigate(['/results']), 3000);
-      },
-      error: (err) => {
-        this.toast.closeLoading();
-        this.toast.error(err.error?.message || 'Submission failed. Please try again.');
-      }
-    });
+      });
   }
+
+  // ========== CONFETTI ==========
+
+  fireCelebration() {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    (function frame() {
+      confetti({
+        particleCount: 7,
+        startVelocity: 30,
+        spread: 360,
+        origin: { 
+          x: Math.random(),
+          y: Math.random() * 0.5
+        }
+      });
+      
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    })();
+  }
+
+  // ========== NAVIGATION ==========
 
   goToResults() {
     if (document.fullscreenElement) document.exitFullscreen();

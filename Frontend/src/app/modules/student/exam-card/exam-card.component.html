@@ -1,0 +1,53 @@
+<div class="exam-card" [class.attempted]="isAttempted">
+  <div class="exam-header">
+    <div class="exam-icon">📝</div>
+    <div class="exam-status" [class]="getStatusClass()">
+      {{ isAttempted ? '✓ Completed' : getExamStatus() }}
+    </div>
+  </div>
+  <div class="exam-body">
+    <h4>{{ exam.title }}</h4>
+    <p>{{ exam.description | slice:0:80 }}{{ exam.description?.length > 80 ? '...' : '' }}</p>
+    
+    <!-- Schedule -->
+    <div class="exam-schedule">
+      <div class="schedule-item">
+        <i class="fas fa-calendar-alt"></i>
+        <span>{{ getStartTime() | date:'MMM d, h:mm a' }} - {{ getEndTime() | date:'h:mm a' }}</span>
+      </div>
+      <div class="schedule-right">
+        <span class="duration-badge">
+          <i class="fas fa-clock"></i> {{ exam.durationInMinutes }} min
+        </span>
+        <span class="marks-badge">
+          <i class="fas fa-star"></i> {{ exam.totalMarks }}
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="exam-footer">
+    <!-- ===== AVAILABLE EXAMS ===== -->
+    <ng-container *ngIf="!isAttempted">
+      <button class="btn-start" 
+              *ngIf="isExamAvailable()" 
+              (click)="startExam()">
+        <i class="fas fa-play"></i> Start Exam
+      </button>
+      <button class="btn-coming-soon" 
+              *ngIf="isExamComingSoon()" 
+              disabled>
+        <i class="fas fa-clock"></i> Coming Soon
+      </button>
+      <button class="btn-expired" 
+              *ngIf="isExamExpired()" 
+              disabled>
+        <i class="fas fa-times-circle"></i> ⛔ Expired
+      </button>
+    </ng-container>
+    
+    <!-- ===== COMPLETED EXAMS (SAME CARD, DIFFERENT BUTTON) ===== -->
+    <button class="btn-view-result" *ngIf="isAttempted" (click)="viewResult()">
+      <i class="fas fa-eye"></i> View Result
+    </button>
+  </div>
+</div>

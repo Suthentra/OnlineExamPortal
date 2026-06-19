@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -16,7 +16,10 @@ import { RegisterComponent } from './modules/auth/register/register.component';
 // Student Components
 import { DashboardComponent } from './modules/student/dashboard/dashboard.component';
 import { ExamComponent } from './modules/student/exam/exam.component';
-import { ResultsComponent } from './modules/student/results/results.component';  // ← Make sure this is imported
+import { ResultsComponent } from './modules/student/results/results.component';
+
+// ===== ADDED: Exam Card Component (Parent-Child Communication) =====
+import { ExamCardComponent } from './modules/student/exam-card/exam-card.component';
 
 // Admin Components
 import { AdminDashboardComponent } from './modules/admin/admin-dashboard/admin-dashboard.component';
@@ -34,7 +37,7 @@ import { StudentResultComponent } from './modules/admin/student-result/student-r
     RegisterComponent,
     DashboardComponent,
     ExamComponent,
-    ResultsComponent,  // ← Make sure this is declared
+    ResultsComponent,
     AdminDashboardComponent,
     CreateExamComponent,
     AddQuestionsComponent,
@@ -42,6 +45,7 @@ import { StudentResultComponent } from './modules/admin/student-result/student-r
     ExamResultsComponent,
     StudentPerformanceComponent,
     StudentResultComponent,
+    ExamCardComponent,  // ← ADD THIS
   ],
   imports: [
     BrowserModule,
@@ -49,6 +53,7 @@ import { StudentResultComponent } from './modules/admin/student-result/student-r
     AppRoutingModule,
     HttpClientModule,
     FormsModule,
+    ReactiveFormsModule,  // ← ADD THIS
     ToastrModule.forRoot({
       positionClass: 'toast-top-right',
       timeOut: 3000,
@@ -56,6 +61,7 @@ import { StudentResultComponent } from './modules/admin/student-result/student-r
       progressBar: true,
       newestOnTop: true,
       preventDuplicates: true,
+      enableHtml: true,
     }),
   ],
   providers: [

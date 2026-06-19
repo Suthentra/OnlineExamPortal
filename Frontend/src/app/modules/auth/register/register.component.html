@@ -2,66 +2,128 @@
   <div class="auth-card">
     <div class="auth-header">
       <div class="logo">
-        <i class="fas fa-user-plus"></i>
+        <i class="fas fa-graduation-cap"></i>
       </div>
       <h2>Create Account</h2>
-      <p>Join us and start your exam journey</p>
+      <p>Start your learning journey today</p>
     </div>
 
-    <div *ngIf="successMessage" class="alert alert-success">
-      <i class="fas fa-check-circle"></i> {{ successMessage }}
-    </div>
-    <div *ngIf="errorMessage" class="alert alert-danger">
-      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
-    </div>
-
-    <form (ngSubmit)="onSubmit()">
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      
+      <!-- Full Name -->
       <div class="form-group">
         <label>Full Name</label>
         <div class="input-group">
           <i class="fas fa-user"></i>
-          <input type="text" [(ngModel)]="fullName" name="fullName" placeholder="Enter your full name" required>
+          <input type="text" 
+                 formControlName="fullName" 
+                 placeholder="Enter your full name"
+                 [class.is-invalid]="submitted && f['fullName'].invalid">
+        </div>
+        <div *ngIf="submitted && f['fullName'].invalid" class="error-message">
+          <span *ngIf="f['fullName'].errors?.['required']">Full name is required</span>
+          <span *ngIf="f['fullName'].errors?.['minlength']">Name must be at least 3 characters</span>
         </div>
       </div>
 
+      <!-- Email with Real-time Validation -->
       <div class="form-group">
-  <label>Email Address</label>
-  <div class="input-group">
-    <i class="fas fa-envelope"></i>
-    <input type="email" 
-           [(ngModel)]="email" 
-           name="email" 
-           (input)="validateEmail()"
-           placeholder="Enter your email" 
-           required>
-  </div>
-  <small *ngIf="email && !isValidEmail(email)" class="text-danger">
-    Please enter a valid email address
-  </small>
-  <small *ngIf="email && isValidEmail(email)" class="text-success">
-    ✓ Valid email format
-  </small>
-</div>
+        <label>Email Address</label>
+        <div class="input-group" 
+             [class.is-valid]="f['email'].valid && f['email'].value && !isEmailTaken() && !checkingEmail"
+             [class.is-invalid]="(f['email'].invalid && f['email'].touched) || isEmailTaken()">
+          <i class="fas fa-envelope"></i>
+          <input type="email" 
+                 formControlName="email" 
+                 placeholder="Enter your email"
+                 (input)="onEmailInput()"
+                 (blur)="checkEmailAvailability()"
+                 [class.is-valid]="f['email'].valid && f['email'].value && !isEmailTaken() && !checkingEmail"
+                 [class.is-invalid]="(f['email'].invalid && f['email'].touched) || isEmailTaken()">
+          <i *ngIf="checkingEmail" class="fas fa-spinner fa-spin" style="padding-right: 12px; color: #4361ee;"></i>
+        </div>
+        
+        <!-- Real-time validation messages -->
+        <div *ngIf="f['email'].touched || submitted">
+          
+          <!-- Invalid format (Real-time) -->
+          <div *ngIf="f['email'].invalid && f['email'].errors?.['pattern']" class="error-message">
+            <i class="fas fa-exclamation-circle"></i> Please enter a valid email address (e.g., user@example.com)
+          </div>
+          
+          <!-- Email required -->
+          <div *ngIf="f['email'].errors?.['required']" class="error-message">
+            <i class="fas fa-exclamation-circle"></i> Email is required
+          </div>
+          
+          <!-- Email already exists -->
+          <div *ngIf="isEmailTaken()" class="error-message">
+            <i class="fas fa-exclamation-circle"></i> This email is already registered
+          </div>
+          
+          <!-- Email available (Success) -->
+          <div *ngIf="f['email'].valid && f['email'].value && !isEmailTaken() && !checkingEmail" class="success-message">
+            <i class="fas fa-check-circle"></i> Email is available
+          </div>
+        </div>
+        
+        <small class="text-muted" *ngIf="!f['email'].value">Must be a valid email address</small>
+      </div>
 
+      <!-- Password -->
       <div class="form-group">
         <label>Password</label>
         <div class="input-group">
           <i class="fas fa-lock"></i>
-          <input type="password" [(ngModel)]="password" name="password" placeholder="Create a password" required>
+          <input type="password" 
+                 formControlName="password" 
+                 placeholder="Enter password (min 8 chars)"
+                 [class.is-invalid]="submitted && f['password'].invalid">
+        </div>
+        <div *ngIf="submitted && f['password'].invalid" class="error-message">
+          <span *ngIf="f['password'].errors?.['required']">Password is required</span>
+          <span *ngIf="f['password'].errors?.['minlength']">Password must be at least 8 characters</span>
+          <span *ngIf="f['password'].errors?.['pattern']">Must contain uppercase, lowercase, and a number</span>
+        </div>
+        <!-- Password Requirements -->
+        <div class="password-requirements" *ngIf="f['password'].value">
+          <span class="req" [class.met]="hasUpperCase(f['password'].value)">
+            <i class="fas" [class.fa-check-circle]="hasUpperCase(f['password'].value)" [class.fa-circle]="!hasUpperCase(f['password'].value)"></i> Uppercase
+          </span>
+          <span class="req" [class.met]="hasLowerCase(f['password'].value)">
+            <i class="fas" [class.fa-check-circle]="hasLowerCase(f['password'].value)" [class.fa-circle]="!hasLowerCase(f['password'].value)"></i> Lowercase
+          </span>
+          <span class="req" [class.met]="hasNumber(f['password'].value)">
+            <i class="fas" [class.fa-check-circle]="hasNumber(f['password'].value)" [class.fa-circle]="!hasNumber(f['password'].value)"></i> Number
+          </span>
+          <span class="req" [class.met]="hasMinLength(f['password'].value)">
+            <i class="fas" [class.fa-check-circle]="hasMinLength(f['password'].value)" [class.fa-circle]="!hasMinLength(f['password'].value)"></i> 8+ chars
+          </span>
         </div>
       </div>
 
+      <!-- Confirm Password -->
       <div class="form-group">
         <label>Confirm Password</label>
         <div class="input-group">
-          <i class="fas fa-lock"></i>
-          <input type="password" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
+          <i class="fas fa-check-circle"></i>
+          <input type="password" 
+                 formControlName="confirmPassword" 
+                 placeholder="Confirm your password"
+                 [class.is-invalid]="submitted && f['confirmPassword'].invalid">
+        </div>
+        <div *ngIf="submitted && f['confirmPassword'].invalid" class="error-message">
+          <span *ngIf="f['confirmPassword'].errors?.['required']">Please confirm your password</span>
+          <span *ngIf="registerForm.errors?.['passwordMismatch']">Passwords do not match</span>
+        </div>
+        <div *ngIf="f['confirmPassword'].value && f['password'].value && f['password'].value === f['confirmPassword'].value && !registerForm.errors?.['passwordMismatch']" class="success-message">
+          <i class="fas fa-check-circle"></i> Passwords match
         </div>
       </div>
 
-      <button type="submit" class="btn-submit" [disabled]="loading">
+      <button type="submit" class="btn-submit" [disabled]="loading || checkingEmail">
         <span *ngIf="!loading">Create Account</span>
-        <span *ngIf="loading">Creating...</span>
+        <span *ngIf="loading">Creating account...</span>
       </button>
 
       <div class="auth-footer">

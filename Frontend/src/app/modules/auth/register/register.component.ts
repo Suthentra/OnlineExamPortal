@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-register',
@@ -10,77 +11,161 @@ import { ApiService } from '../../../shared/services/api.service';
   standalone: false
 })
 export class RegisterComponent {
-  fullName = '';
-  email = '';
-  password = '';
-  confirmPassword = '';
-  errorMessage = '';
-  successMessage = '';
+  registerForm: FormGroup;
   loading = false;
+  submitted = false;
+  checkingEmail = false;
+  emailCheckTimeout: any;
 
-  constructor(private auth: AuthService,private api: ApiService, private router: Router) {}
+  emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
 
-  // Email validation function
-  isValidEmail(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(email);
+  constructor(
+    private fb: FormBuilder,
+    private api: ApiService,
+    private router: Router,
+    private toast: ToastService
+  ) {
+    this.registerForm = this.fb.group({
+      fullName: ['', [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(50)
+      ]],
+      email: ['', [
+        Validators.required,
+        Validators.pattern(this.emailRegex)
+      ]],
+      password: ['', [
+        Validators.required,
+        Validators.minLength(8),
+        Validators.pattern(this.passwordRegex)
+      ]],
+      confirmPassword: ['', [
+        Validators.required
+      ]]
+    }, {
+      validators: this.passwordMatchValidator
+    });
   }
-validateEmail() {
-  
-}
-async validateEmailAvailability() {
-  if (!this.isValidEmail(this.email)) return;
-  
-  this.api.checkEmailAvailability(this.email).subscribe({
-    next: (res: any) => {
-      if (!res.available) {
-        this.errorMessage = 'Email already registered. Please use a different email.';
+
+  passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('password');
+    const confirmPassword = control.get('confirmPassword');
+    
+    if (password && confirmPassword && password.value !== confirmPassword.value) {
+      return { passwordMismatch: true };
+    }
+    return null;
+  }
+
+  get f() { return this.registerForm.controls; }
+
+  isEmailTaken(): boolean {
+    const emailControl = this.registerForm.get('email');
+    return emailControl?.hasError('alreadyTaken') || false;
+  }
+
+  // ===== REAL-TIME EMAIL INPUT VALIDATION =====
+  onEmailInput() {
+    const emailControl = this.registerForm.get('email');
+    
+    // Clear previous timeout
+    if (this.emailCheckTimeout) {
+      clearTimeout(this.emailCheckTimeout);
+    }
+
+    // Only check if email has valid format
+    if (emailControl?.valid && emailControl.value) {
+      // Remove alreadyTaken error if format becomes valid
+      if (emailControl.hasError('alreadyTaken')) {
+        const errors = { ...emailControl.errors };
+        delete errors['alreadyTaken'];
+        emailControl.setErrors(Object.keys(errors).length ? errors : null);
       }
+      
+      // Debounce email check (wait 500ms after user stops typing)
+      this.emailCheckTimeout = setTimeout(() => {
+        this.checkEmailAvailability();
+      }, 500);
     }
-  });
-}
+  }
+
+  // ===== CHECK EMAIL AVAILABILITY =====
+  checkEmailAvailability() {
+    const emailControl = this.registerForm.get('email');
+    
+    // Only check if email is valid format
+    if (!emailControl?.value || emailControl.invalid) {
+      return;
+    }
+
+    // If already marked as taken, check again
+    this.checkingEmail = true;
+    const email = emailControl.value.toLowerCase().trim();
+
+    this.api.checkEmailAvailability(email).subscribe({
+      next: (response: any) => {
+        this.checkingEmail = false;
+        if (!response.available) {
+          emailControl.setErrors({ ...emailControl.errors, alreadyTaken: true });
+        } else {
+          // Remove alreadyTaken error if exists
+          if (emailControl.hasError('alreadyTaken')) {
+            const errors = { ...emailControl.errors };
+            delete errors['alreadyTaken'];
+            emailControl.setErrors(Object.keys(errors).length ? errors : null);
+          }
+        }
+      },
+      error: () => {
+        this.checkingEmail = false;
+        // Don't show error for availability check failure
+      }
+    });
+  }
+
+  hasUpperCase(password: string): boolean {
+    return /[A-Z]/.test(password);
+  }
+
+  hasLowerCase(password: string): boolean {
+    return /[a-z]/.test(password);
+  }
+
+  hasNumber(password: string): boolean {
+    return /\d/.test(password);
+  }
+
+  hasMinLength(password: string): boolean {
+    return password?.length >= 8;
+  }
+
   onSubmit() {
-    // Reset messages
-    this.errorMessage = '';
-    this.successMessage = '';
-
-    // Validation
-    if (!this.fullName || !this.email || !this.password) {
-      this.errorMessage = 'All fields are required';
+    this.submitted = true;
+    
+    if (this.registerForm.invalid) {
+      this.toast.warning('Please fix all validation errors');
       return;
     }
-
-    // Email format validation
-    if (!this.isValidEmail(this.email)) {
-      this.errorMessage = 'Please enter a valid email address (e.g., name@company.com)';
-      return;
-    }
-
-    if (this.password !== this.confirmPassword) {
-      this.errorMessage = 'Passwords do not match';
-      return;
-    }
-
-    if (this.password.length < 6) {
-      this.errorMessage = 'Password must be at least 6 characters';
-      return;
-    }
-
+    
     this.loading = true;
-
-    this.auth.register({
-      fullName: this.fullName,
-      email: this.email,
-      password: this.password
-    }).subscribe({
+    
+    const registerData = {
+      fullName: this.registerForm.value.fullName.trim(),
+      email: this.registerForm.value.email.toLowerCase().trim(),
+      password: this.registerForm.value.password
+    };
+    
+    this.api.register(registerData).subscribe({
       next: () => {
-        this.successMessage = 'Registration successful! Redirecting to login...';
         this.loading = false;
-        setTimeout(() => this.router.navigate(['/login']), 2000);
+        this.toast.success('Registration successful! Please login.');
+        this.router.navigate(['/login']);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Registration failed';
         this.loading = false;
+        this.toast.error(err.error?.message || 'Registration failed');
       }
     });
   }

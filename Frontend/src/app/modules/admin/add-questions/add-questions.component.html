@@ -88,7 +88,6 @@
         <div class="mb-3">
           <label class="form-label">Options *</label>
           
-          <!-- Option rows with keyboard navigation -->
           <div *ngFor="let opt of options; let i = index" class="option-row mb-2">
             <div class="row align-items-center">
               <div class="col-md-6">
@@ -246,24 +245,101 @@
     </div>
   </div>
 
-  <!-- ========== TAB 3: BULK UPLOAD ========== -->
+  <!-- ========== TAB 3: BULK UPLOAD - FIXED ========== -->
   <div *ngIf="activeTab === 'bulk'" class="card mt-3">
     <div class="card-header bg-success text-white">
-      <h5>Bulk Question Upload</h5>
+      <h5><i class="fas fa-upload"></i> Bulk Question Upload</h5>
     </div>
     <div class="card-body">
-      <div class="row">
+      
+      <!-- Processing indicator -->
+      <div *ngIf="csvProcessing" class="alert alert-info">
+        <i class="fas fa-spinner fa-spin"></i> Processing CSV file... Please wait.
+      </div>
+
+      <!-- Loaded questions preview -->
+      <div *ngIf="csvQuestions.length > 0 && !csvProcessing" class="alert alert-success">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-check-circle"></i>
+            <strong>{{ csvQuestions.length }}</strong> questions loaded from CSV
+            <span class="badge bg-secondary ms-2">{{ getCsvTotalMarks() }} marks</span>
+          </div>
+          <button class="btn btn-sm btn-danger" (click)="csvQuestions = []; csvFile = null; resetFileInput()">
+            <i class="fas fa-times"></i> Clear
+          </button>
+        </div>
+        
+        <!-- Quick preview table -->
+        <div class="table-responsive mt-2" *ngIf="csvQuestions.length > 0">
+          <table class="table table-sm table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Question</th>
+                <th>Type</th>
+                <th>Options</th>
+                <th>Correct</th>
+                <th>Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let q of getCsvPreviewQuestions(); let i = index">
+                <td>{{ i + 1 }}</td>
+                <td>{{ q.questionText | slice:0:50 }}{{ q.questionText.length > 50 ? '...' : '' }}</td>
+                <td><span class="badge bg-info">{{ q.questionType }}</span></td>
+                <td>{{ getCsvOptionsCount(q) }}</td>
+                <td>{{ getCsvCorrectCount(q) }}</td>
+                <td>{{ q.marks }}</td>
+              </tr>
+              <tr *ngIf="hasMoreCsvQuestions()">
+                <td colspan="6" class="text-center text-muted">
+                  <i class="fas fa-ellipsis-h"></i> ... and {{ getRemainingCsvCount() }} more questions
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="row mt-2">
         <div class="col-md-6">
-          <button class="btn btn-info w-100" (click)="downloadCSVTemplate()">
-            📥 Download CSV Template
+          <button class="btn btn-info w-100" (click)="downloadCSVTemplate()" [disabled]="csvProcessing">
+            <i class="fas fa-download"></i> Download CSV Template
           </button>
         </div>
         <div class="col-md-6">
-          <input type="file" #fileInput (change)="uploadCSV($event)" accept=".csv" class="form-control">
+          <div class="input-group">
+            <input type="file" #fileInput 
+                   (change)="uploadCSV($event)" 
+                   accept=".csv" 
+                   class="form-control" 
+                   [disabled]="csvProcessing">
+            <label class="input-group-text" *ngIf="!csvProcessing">
+              <i class="fas fa-file-csv"></i>
+            </label>
+          </div>
         </div>
       </div>
+      
       <div class="alert alert-info mt-3">
-        <strong>Instructions:</strong> Download the template, fill in your questions, save as CSV, then upload.
+        <strong><i class="fas fa-info-circle"></i> Instructions:</strong>
+        <ul class="mb-0 mt-1">
+          <li>Download the template to see the required format</li>
+          <li>Fill in your questions in the CSV file</li>
+          <li><strong>MCQ:</strong> Only ONE correct answer (column 9)</li>
+          <li><strong>MULTIPLE_ANSWER:</strong> Multiple correct answers separated by commas (e.g., 1,3)</li>
+          <li><strong>TRUE_FALSE:</strong> Use "True" and "False" as options</li>
+          <li>Save as CSV and upload</li>
+          <li>Questions that don't fit within remaining marks will be skipped</li>
+        </ul>
+      </div>
+
+      <!-- Upload button when questions are loaded -->
+      <div *ngIf="csvQuestions.length > 0 && !csvProcessing" class="mt-3">
+        <button class="btn btn-success w-100" (click)="showCSVPreviewAndConfirm()">
+          <i class="fas fa-upload"></i> Upload {{ csvQuestions.length }} Questions
+        </button>
       </div>
     </div>
   </div>

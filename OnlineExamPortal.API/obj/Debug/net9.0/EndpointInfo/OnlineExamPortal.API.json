@@ -219,16 +219,6 @@
       }
     },
     "/api/Exams": {
-      "get": {
-        "tags": [
-          "Exams"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
       "post": {
         "tags": [
           "Exams"
@@ -257,9 +247,7 @@
             "description": "OK"
           }
         }
-      }
-    },
-    "/api/Exams/published": {
+      },
       "get": {
         "tags": [
           "Exams"
@@ -272,27 +260,6 @@
       }
     },
     "/api/Exams/{id}": {
-      "get": {
-        "tags": [
-          "Exams"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
       "put": {
         "tags": [
           "Exams"
@@ -333,6 +300,27 @@
           }
         }
       },
+      "get": {
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "Exams"
@@ -355,7 +343,42 @@
         }
       }
     },
+    "/api/Exams/published": {
+      "get": {
+        "tags": [
+          "Exams"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Exams/{id}/publish": {
+      "patch": {
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Exams/{id}/publish-results": {
       "patch": {
         "tags": [
           "Exams"

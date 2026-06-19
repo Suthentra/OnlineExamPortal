@@ -2,10 +2,9 @@
 {
     public class StudentResultDto
     {
-        public int AttemptId { get; set; }
-        public int ExamId { get; set; }
-        public string ExamTitle { get; set; } = string.Empty;
-        public DateTime SubmittedAt { get; set; }
+        public int StudentId { get; set; }
+        public string StudentName { get; set; } = string.Empty;
+        public string StudentEmail { get; set; } = string.Empty;
         public int Score { get; set; }
         public int TotalMarks { get; set; }
         public decimal Percentage { get; set; }

@@ -1,101 +1,254 @@
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>My Results</h2>
-    <button class="btn btn-danger" (click)="logout()">Logout</button>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="loading" class="text-center mt-5">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Loading...</span>
+<div class="results-container">
+  <!-- Header -->
+  <div class="results-header">
+    <div>
+      <h1><i class="fas fa-chart-line"></i> My Exam Results</h1>
+      <p class="text-muted">View your exam performance and track your progress</p>
     </div>
-    <p class="mt-2">Loading your results...</p>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportToCSV()">
+        <i class="fas fa-download"></i> Export CSV
+      </button>
+      <button class="btn-print" (click)="printResults()">
+        <i class="fas fa-print"></i> Print
+      </button>
+    </div>
   </div>
 
-  <!-- Error Message -->
-  <div *ngIf="errorMessage" class="alert alert-danger">
-    {{ errorMessage }}
+  <!-- Stats Cards -->
+  <div class="stats-grid" *ngIf="!loading && results.length > 0">
+    <div class="stat-card">
+      <div class="stat-icon purple">
+        <i class="fas fa-file-alt"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ results.length }}</h3>
+        <p>Total Exams</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ getPassCount() }}</h3>
+        <p>Passed</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">
+        <i class="fas fa-times-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ getFailCount() }}</h3>
+        <p>Failed</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <i class="fas fa-percent"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ getAverageScore() }}%</h3>
+        <p>Average Score</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading your results...</p>
   </div>
 
   <!-- No Results -->
-  <div *ngIf="!loading && results.length === 0" class="alert alert-info">
-    You haven't taken any exams yet.
+  <div *ngIf="!loading && results.length === 0" class="empty-state">
+    <i class="fas fa-inbox"></i>
+    <h3>No Results Found</h3>
+    <p>You haven't taken any exams yet. Start an exam to see your results here.</p>
+    <button class="btn-primary" (click)="goBack()">Browse Exams</button>
   </div>
 
   <!-- Results Table -->
-  <div class="table-responsive" *ngIf="!loading && results.length > 0">
-    <table class="table table-bordered table-hover">
-      <thead class="table-dark">
-        <tr>
-          <th>Exam Name</th>
-          <th>Score</th>
-          <th>Percentage</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let result of results">
-          <td><strong>{{ result.examTitle }}</strong></td>
-          <td>{{ result.score }}/{{ result.totalMarks }}</td>
-          <td [class.text-success]="result.percentage >= 40" [class.text-danger]="result.percentage < 40">
-            {{ result.percentage }}%
-          </td>
-          <td>
-            <span class="badge" [class.bg-success]="result.isPassed" [class.bg-danger]="!result.isPassed">
-              {{ result.isPassed ? 'Passed ✅' : 'Failed ❌' }}
-            </span>
-          </td>
-          <td>{{ result.submittedAt | date:'medium' }}</td>
-          <td>
-            <button class="btn btn-sm btn-info" (click)="viewResultDetail(result.attemptId)">
-              View Details
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div *ngIf="!loading && results.length > 0" class="results-card">
+    <!-- Search & Filter -->
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" 
+               placeholder="Search by exam name..." 
+               [(ngModel)]="searchTerm"
+               (input)="filteredResults">
+      </div>
+      <div class="filter-options">
+        <button class="filter-btn" [class.active]="statusFilter === 'all'" (click)="statusFilter = 'all'">All</button>
+        <button class="filter-btn" [class.active]="statusFilter === 'passed'" (click)="statusFilter = 'passed'">
+          <i class="fas fa-check-circle" style="color: #10b981;"></i> Passed
+        </button>
+        <button class="filter-btn" [class.active]="statusFilter === 'failed'" (click)="statusFilter = 'failed'">
+          <i class="fas fa-times-circle" style="color: #dc2626;"></i> Failed
+        </button>
+        
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th (click)="sortBy('examTitle')">
+              Exam Name <i class="fas" [ngClass]="getSortIcon('examTitle')"></i>
+            </th>
+            <th (click)="sortBy('score')">
+              Score <i class="fas" [ngClass]="getSortIcon('score')"></i>
+            </th>
+            <th (click)="sortBy('percentage')">
+              Percentage <i class="fas" [ngClass]="getSortIcon('percentage')"></i>
+            </th>
+            <th (click)="sortBy('isPassed')">
+              Status <i class="fas" [ngClass]="getSortIcon('isPassed')"></i>
+            </th>
+            <th (click)="sortBy('submittedAt')">
+              Date <i class="fas" [ngClass]="getSortIcon('submittedAt')"></i>
+            </th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let result of filteredResults">
+            <td>
+              <div class="exam-name">
+                <i class="fas fa-file-alt"></i>
+                <span>{{ result.examTitle }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="score-badge">{{ result.score }}/{{ result.totalMarks }}</span>
+            </td>
+            <td>
+              <div class="percentage-cell">
+                <div class="progress-bar-mini">
+                  <div class="progress-fill" 
+                       [style.width.%]="result.percentage"
+                       [style.background]="result.percentage >= 40 ? '#10b981' : '#dc2626'">
+                  </div>
+                </div>
+                <span class="percentage-text" 
+                      [class.text-success]="result.percentage >= 40" 
+                      [class.text-danger]="result.percentage < 40">
+                  {{ result.percentage }}%
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge" 
+                    [class.passed]="result.isPassed" 
+                    [class.failed]="!result.isPassed">
+                <i class="fas" [class.fa-check-circle]="result.isPassed" [class.fa-times-circle]="!result.isPassed"></i>
+                {{ result.isPassed ? 'Passed' : 'Failed' }}
+              </span>
+            </td>
+            <td>
+              <span class="date-text">
+                <i class="far fa-calendar-alt"></i>
+                {{ result.submittedAt | date:'MMM d, y' }}
+                <span class="time-text">{{ result.submittedAt | date:'h:mm a' }}</span>
+              </span>
+            </td>
+            <td>
+              <button class="btn-view" (click)="viewResultDetail(result.attemptId)">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredResults.length === 0">
+            <td colspan="6" class="no-data">
+              <i class="fas fa-search"></i>
+              <span>No results found matching your search</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="table-footer">
+      <span class="results-count">
+        Showing <strong>{{ filteredResults.length }}</strong> of <strong>{{ results.length }}</strong> results
+      </span>
+    </div>
   </div>
 </div>
 
-<!-- Modal for Result Details -->
+<!-- ===== DETAIL MODAL ===== -->
 <div class="modal-overlay" *ngIf="showDetailModal" (click)="closeModal()">
   <div class="modal-container" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h3>📊 Result Details</h3>
+    <div class="modal-header" [class.passed-header]="selectedResult?.isPassed" [class.failed-header]="!selectedResult?.isPassed">
+      <div>
+        <h3><i class="fas fa-file-alt"></i> {{ selectedResult?.examTitle }}</h3>
+        <p class="modal-subtitle">Result Details</p>
+      </div>
       <button class="modal-close" (click)="closeModal()">✖</button>
     </div>
-    <div class="modal-body" *ngIf="selectedResult">
-      <!-- Status Badge -->
-      <div class="status-section" [class.passed-bg]="selectedResult.isPassed" [class.failed-bg]="!selectedResult.isPassed">
-        <h3>{{ selectedResult.isPassed ? '✅ PASSED' : '❌ FAILED' }}</h3>
+    <div class="modal-body">
+      <!-- Summary Cards -->
+      <div class="modal-summary">
+        <div class="summary-card">
+          <span class="summary-label">Score</span>
+          <span class="summary-value">{{ selectedResult?.score }}/{{ selectedResult?.totalMarks }}</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Percentage</span>
+          <span class="summary-value" [class.text-success]="selectedResult?.percentage >= 40" [class.text-danger]="selectedResult?.percentage < 40">
+            {{ selectedResult?.percentage }}%
+          </span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Status</span>
+          <span class="summary-value" [class.text-success]="selectedResult?.isPassed" [class.text-danger]="!selectedResult?.isPassed">
+            {{ selectedResult?.isPassed ? 'Passed' : 'Failed' }}
+          </span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Submitted</span>
+          <span class="summary-value">{{ selectedResult?.submittedAt | date:'medium' }}</span>
+        </div>
       </div>
 
-      <p><strong>Exam:</strong> {{ selectedResult.examTitle }}</p>
-      <p><strong>Score:</strong> {{ selectedResult.score }}/{{ selectedResult.totalMarks }}</p>
-      <p><strong>Percentage:</strong> {{ selectedResult.percentage }}%</p>
-      <p><strong>Submitted:</strong> {{ selectedResult.submittedAt | date:'medium' }}</p>
-      
-      <hr>
-      <h4>Answer Details</h4>
+      <!-- Answer Details -->
+      <h4 class="answers-title"><i class="fas fa-list"></i> Answer Details</h4>
       <div class="answers-list">
         <div *ngFor="let answer of selectedAnswers; let i = index" class="answer-item" [class.correct]="answer.isCorrect" [class.wrong]="!answer.isCorrect">
-          <div class="question-number">Q{{ i + 1 }}</div>
-          <div class="question-text">{{ answer.questionText }}</div>
-          <div class="answer-details">
-            <div>Your Answer: <strong>{{ answer.yourAnswer || 'Not Answered' }}</strong></div>
-            <div>Correct Answer: <strong>{{ answer.correctAnswer }}</strong></div>
+          <div class="answer-header">
+            <span class="answer-number">Q{{ i + 1 }}</span>
+            <span class="answer-status">
+              <i class="fas" [class.fa-check-circle]="answer.isCorrect" [class.fa-times-circle]="!answer.isCorrect"></i>
+              {{ answer.isCorrect ? 'Correct' : 'Wrong' }}
+            </span>
           </div>
-          <div class="answer-status">
-            <span *ngIf="answer.isCorrect">✅ Correct</span>
-            <span *ngIf="!answer.isCorrect">❌ Wrong</span>
+          <div class="answer-question">{{ answer.questionText }}</div>
+          <div class="answer-details">
+            <div class="answer-row">
+              <span class="answer-label">Your Answer:</span>
+              <span class="answer-text" [class.text-success]="answer.isCorrect" [class.text-danger]="!answer.isCorrect">
+                {{ answer.yourAnswer || 'Not Answered' }}
+              </span>
+            </div>
+            <div class="answer-row" *ngIf="!answer.isCorrect">
+              <span class="answer-label">Correct Answer:</span>
+              <span class="answer-text text-success">{{ answer.correctAnswer }}</span>
+            </div>
+            <div class="answer-row">
+              <span class="answer-label">Marks:</span>
+              <span class="answer-text">{{ answer.isCorrect ? answer.marks : 0 }} / {{ answer.marks }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" (click)="closeModal()">Close</button>
+      <button class="btn-primary" (click)="closeModal()">Close</button>
     </div>
   </div>
 </div>

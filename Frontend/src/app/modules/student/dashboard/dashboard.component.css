@@ -54,8 +54,9 @@
   transition: all 0.3s ease;
 }
 
-.nav-link:hover, .nav-link.active {
-  background: rgba(255,255,255,0.1);
+.nav-link:hover,
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
   color: white;
 }
 
@@ -69,7 +70,7 @@
   align-items: center;
   gap: 14px;
   padding-top: 20px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .user-info i {
@@ -83,7 +84,7 @@
 }
 
 .user-info small {
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Main Content */
@@ -102,7 +103,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .top-bar h2 {
@@ -119,56 +120,6 @@
   display: flex;
   align-items: center;
   gap: 15px;
-}
-
-.btn-dark-mode {
-  background: #e9ecef;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-dark-mode:hover {
-  background: #dee2e6;
-  transform: scale(1.05);
-}
-
-.btn-dark-mode i {
-  font-size: 18px;
-  color: #1e2a4a;
-}
-
-.btn-logout {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-logout:hover {
-  background: #b91c1c;
-  transform: translateY(-2px);
-}
-
-/* ========================================
-   NOTIFICATION BELL STYLES
-   ======================================== */
-
-.notification-dropdown {
-  position: relative;
-  display: inline-block;
 }
 
 .btn-notification {
@@ -211,6 +162,30 @@
   font-weight: bold;
 }
 
+.btn-logout {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+/* Notification Dropdown */
+.notification-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
 .dropdown-content {
   position: absolute;
   top: 50px;
@@ -219,7 +194,7 @@
   min-width: 380px;
   max-width: 450px;
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   overflow: hidden;
   animation: slideDown 0.2s ease;
@@ -332,30 +307,7 @@
   color: #adb5bd;
 }
 
-.btn-change-password {
-  background: #4361ee;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-}
-
-.btn-change-password:hover {
-  background: #3a0ca3;
-  transform: translateY(-2px);
-}
-
-/* ========================================
-   STATS GRID
-   ======================================== */
-
+/* Stats Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -370,13 +322,13 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
 .stat-icon {
@@ -425,16 +377,13 @@
   font-size: 12px;
 }
 
-/* ========================================
-   SECTION CARD
-   ======================================== */
-
+/* Section Card */
 .section-card {
   background: white;
   border-radius: 20px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .section-header {
@@ -450,10 +399,7 @@
   margin: 0;
 }
 
-/* ========================================
-   ACTIVITY LIST
-   ======================================== */
-
+/* Activity List */
 .activity-list {
   display: flex;
   flex-direction: column;
@@ -500,152 +446,59 @@
   color: #6c757d;
 }
 
-/* ========================================
-   EXAM GRID
-   ======================================== */
-
+/* Exam Grid */
 .exam-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
 }
 
-.exam-card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
-  
+/* Alert Styles */
+.alert {
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
 }
 
-.exam-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+.alert-info {
+  background: #dbeafe;
+  color: #1e2a4a;
+  border: 1px solid #bfdbfe;
 }
 
-
-/* Completed Exam Card - Grey border */
-.exam-card.completed {
-  border-color: #e5e7eb;
-  opacity: 0.85;
-}
-
-.exam-card.completed .exam-body h4 {
-  color: #6b7280;
-}
-
-.exam-card.completed .exam-meta {
-  color: #9ca3af;
-}
-
-.exam-header {
-  padding: 16px;
-  background: #f8f9fa;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.exam-icon {
-  font-size: 32px;
-}
-
-.exam-status {
-  font-size: 12px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-weight: 600;
-}
-
-.exam-status.available-status {
+.alert-success {
   background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.alert-success i {
   color: #10b981;
 }
 
-.exam-status.completed-status {
-  background: #e5e7eb;
-  color: #6b7280;
+.alert-success p {
+  color: #065f46;
 }
 
-.exam-body {
-  padding: 16px;
-}
-
-.exam-body h4 {
-  margin-bottom: 8px;
-  color: #1e2a4a;
-}
-
-.exam-body p {
-  color: #4a5568;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.exam-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.exam-meta i {
-  margin-right: 4px;
-}
-
-.exam-footer {
-  padding: 12px 16px;
+/* Attempted Exams Section */
+.attempted-section {
+  margin-top: 30px;
+  padding-top: 10px;
   border-top: 1px solid #e9ecef;
 }
 
-/* Start Exam Button - Blue */
-.btn-start {
-  background: linear-gradient(135deg, #4361ee, #3a0ca3);
-  color: white;
-  border: none;
-  padding: 10px;
-  width: 100%;
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-  font-weight: 500;
+.attempted-section .section-header h3 {
+  color: #1e2a4a;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.btn-start:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+.attempted-section .exam-grid {
+  margin-top: 16px;
 }
 
-/* Completed Button - Grey/Disabled */
-.btn-completed {
-  background: #e5e7eb;
-  color: #6b7280;
-  border: none;
-  padding: 10px;
-  width: 100%;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: not-allowed;
-  opacity: 0.7;
-  font-weight: 500;
-}
-
-.btn-completed i {
-  margin-right: 6px;
-}
-
-/* ========================================
-   RESULTS TABLE
-   ======================================== */
-
+/* Results Table */
 .results-table-wrapper {
   overflow-x: auto;
 }
@@ -656,7 +509,8 @@
   border-radius: 16px;
   border-collapse: collapse;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  
 }
 
 .results-table th,
@@ -718,10 +572,7 @@
   font-weight: bold;
 }
 
-/* ========================================
-   RANK CONTAINER
-   ======================================== */
-
+/* Rank Container */
 .rank-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -734,13 +585,11 @@
   padding: 40px;
   text-align: center;
   color: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .rank-icon {
   font-size: 60px;
   margin-bottom: 20px;
-  display: block;
 }
 
 .rank-number {
@@ -764,9 +613,9 @@
 }
 
 .rank-message {
-  font-size: 16px;
-  background: rgba(255,255,255,0.1);
-  padding: 12px;
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px 20px;
   border-radius: 12px;
   color: #ffffff !important;
   font-weight: 500;
@@ -778,7 +627,6 @@
   background: white;
   border-radius: 24px;
   padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .performance-summary h3 {
@@ -824,31 +672,7 @@
   transition: width 0.5s ease;
 }
 
-/* ========================================
-   LOADING & ALERT
-   ======================================== */
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e9ecef;
-  border-top-color: #4361ee;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
+/* Loading */
 .spinner-border {
   display: inline-block;
   width: 3rem;
@@ -868,460 +692,52 @@
   text-align: center;
 }
 
-.alert {
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+.mt-5 {
+  margin-top: 3rem;
 }
 
-.alert-info {
-  background: #dbeafe;
-  color: #1e2a4a;
-  border: 1px solid #bfdbfe;
-}
-
-/* ========================================
-   NO EXAMS / NO RESULTS
-   ======================================== */
-
-.no-exams {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  background: white;
-  border-radius: 16px;
-}
-
-.no-exams h3 {
-  margin: 16px 0 8px;
-  color: #1e2a4a;
-}
-
-.no-exams p {
-  color: #6c757d;
-}
-
-.no-exams-small {
-  text-align: center;
-  padding: 20px;
-}
-
-.no-exams-small p {
-  color: #6c757d;
-  font-size: 16px;
-}
-
-.no-results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  background: white;
-  border-radius: 16px;
-}
-
-.no-results h3 {
-  margin: 16px 0 8px;
-  color: #1e2a4a;
-}
-
-.no-results p {
-  color: #6c757d;
-}
-
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #6c757d;
-}
-
-/* ========================================
-   RANK MESSAGE
-   ======================================== */
-
-.rank-message {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: white;
-  padding: 16px 20px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  color: #1e2a4a !important;
-}
-
-.rank-icon {
-  font-size: 32px;
-}
-
-/* ========================================
-   DARK MODE STYLES
-   ======================================== */
-
-body.dark-mode {
-  background-color: #121212 !important;
-}
-
-body.dark-mode .dashboard-container {
-  background-color: #121212 !important;
-}
-
-body.dark-mode .main-content {
-  background-color: #121212 !important;
-}
-
-body.dark-mode .top-bar {
-  background-color: #1e1e2e !important;
-  border-bottom: 1px solid #333 !important;
-}
-
-body.dark-mode .top-bar h2 {
-  color: white !important;
-}
-
-body.dark-mode .top-bar .text-muted {
-  color: #aaa !important;
-}
-
-body.dark-mode .stat-card {
-  background-color: #1e1e2e !important;
-  border: 1px solid #333 !important;
-}
-
-body.dark-mode .stat-info h3 {
-  color: white !important;
-}
-
-body.dark-mode .stat-info p {
-  color: #aaa !important;
-}
-
-body.dark-mode .section-card {
-  background-color: #1e1e2e !important;
-  border: 1px solid #333 !important;
-}
-
-body.dark-mode .section-header h3 {
-  color: white !important;
-}
-
-body.dark-mode .activity-item {
-  background-color: #2a2a3e !important;
-}
-
-body.dark-mode .activity-details p {
-  color: white !important;
-}
-
-body.dark-mode .activity-details span {
-  color: #aaa !important;
-}
-
-body.dark-mode .sidebar {
-  background: linear-gradient(180deg, #0f0f1a 0%, #0a0a15 100%) !important;
-}
-
-body.dark-mode .logo-area span,
-body.dark-mode .user-info div div {
-  color: white !important;
-}
-
-body.dark-mode .nav-link {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-body.dark-mode .nav-link:hover,
-body.dark-mode .nav-link.active {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-}
-
-body.dark-mode .exam-card {
-  background-color: #1e1e2e !important;
-  border: 1px solid #333 !important;
-}
-
-body.dark-mode .exam-card:not(.completed) {
-  border-color: #4361ee !important;
-}
-
-body.dark-mode .exam-card.completed {
-  border-color: #333 !important;
-}
-
-body.dark-mode .exam-card.completed .exam-body h4 {
-  color: #888 !important;
-}
-
-body.dark-mode .exam-header {
-  background-color: #16213e !important;
-}
-
-body.dark-mode .exam-body h4 {
-  color: white !important;
-}
-
-body.dark-mode .exam-body p {
-  color: #aaa !important;
-}
-
-body.dark-mode .exam-meta {
-  color: #aaa !important;
-}
-
-body.dark-mode .exam-status.available-status {
-  background: #1a3a2a !important;
-  color: #6fcf97 !important;
-}
-
-body.dark-mode .exam-status.completed-status {
-  background: #2a2a3e !important;
-  color: #888 !important;
-}
-
-body.dark-mode .btn-start {
-  background: linear-gradient(135deg, #4361ee, #3a0ca3) !important;
-}
-
-body.dark-mode .btn-completed {
-  background: #2a2a3e !important;
-  color: #888 !important;
-}
-
-body.dark-mode .results-table {
-  background-color: #1e1e2e !important;
-}
-
-body.dark-mode .results-table th {
-  background-color: #16213e !important;
-  color: white !important;
-}
-
-body.dark-mode .results-table td {
-  color: #e0e0e0 !important;
-  border-bottom-color: #333 !important;
-}
-
-body.dark-mode .results-table tr:hover {
-  background-color: #2a2a3e !important;
-}
-
-body.dark-mode .rank-card-large {
-  background: linear-gradient(135deg, #1a1a3e, #0f0f2a) !important;
-}
-
-body.dark-mode .performance-summary {
-  background-color: #1e1e2e !important;
-}
-
-body.dark-mode .performance-summary h3 {
-  color: white !important;
-}
-
-body.dark-mode .perf-label {
-  color: #aaa !important;
-}
-
-body.dark-mode .perf-value {
-  color: white !important;
-}
-
-body.dark-mode .btn-logout {
-  background-color: #dc2626 !important;
-}
-
-body.dark-mode .btn-dark-mode {
-  background-color: #2a2a3e !important;
-}
-
-body.dark-mode .btn-dark-mode i {
-  color: #ffd700 !important;
-}
-
-body.dark-mode .btn-notification {
-  background: #2a2a3e !important;
-}
-
-body.dark-mode .btn-notification i {
-  color: #ffd700 !important;
-}
-
-body.dark-mode .dropdown-content {
-  background: #1e1e2e !important;
-}
-
-body.dark-mode .dropdown-header {
-  background: #16213e !important;
-  border-bottom-color: #2a2a3e !important;
-  color: white !important;
-}
-
-body.dark-mode .notification-item {
-  border-bottom-color: #2a2a3e !important;
-}
-
-body.dark-mode .notification-item:hover {
-  background: #252540 !important;
-}
-
-body.dark-mode .notification-item.unread {
-  background: #1a2a4a !important;
-}
-
-body.dark-mode .notification-title {
-  color: white !important;
-}
-
-body.dark-mode .notification-message {
-  color: #aaa !important;
-}
-
-body.dark-mode .no-notifications {
-  color: #aaa !important;
-}
-
-body.dark-mode .status-badge.passed {
-  background-color: #1a3a2a !important;
-  color: #6fcf97 !important;
-}
-
-body.dark-mode .status-badge.failed {
-  background-color: #3a1a1a !important;
-  color: #ff6b6b !important;
-}
-
-body.dark-mode .alert-info {
-  background-color: #1a2a3a !important;
-  color: #7ab8ff !important;
-  border-color: #2a3a4a !important;
-}
-
-body.dark-mode .btn-view {
-  background-color: #2a2a3e !important;
-  color: #7ab8ff !important;
-}
-
-body.dark-mode .btn-view:hover {
-  background-color: #4361ee !important;
-  color: white !important;
-}
-
-body.dark-mode .rank-message {
-  background-color: #1e1e2e !important;
-  color: white !important;
-}
-
-body.dark-mode .no-exams {
-  background-color: #1e1e2e !important;
-}
-
-body.dark-mode .no-exams h3 {
-  color: white !important;
-}
-
-body.dark-mode .no-exams p {
-  color: #aaa !important;
-}
-
-body.dark-mode .no-results {
-  background-color: #1e1e2e !important;
-}
-
-body.dark-mode .no-results h3 {
-  color: white !important;
-}
-
-body.dark-mode .no-results p {
-  color: #aaa !important;
-}
-
-/* ========================================
-   RESPONSIVE MEDIA QUERIES
-   ======================================== */
-
+/* Responsive */
 @media (max-width: 768px) {
   .sidebar {
     width: 80px;
     padding: 16px 12px;
   }
-  
+
   .sidebar .logo-area span,
   .sidebar .nav-link span,
   .sidebar .user-info div {
     display: none;
   }
-  
+
   .main-content {
     margin-left: 80px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .exam-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .rank-container {
     grid-template-columns: 1fr;
   }
-  
+
   .dropdown-content {
     min-width: 300px;
     right: -30px;
   }
-  
+
   .top-bar {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
-  }
-  
-  .exam-card:not(.completed) {
-    border-color: #4361ee;
-  }
-}
-
-@media (max-width: 480px) {
-  .dropdown-content {
-    min-width: 280px;
-    right: -50px;
-  }
-  
-  .exam-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .rank-card-large {
-    padding: 20px;
-  }
-  
-  .rank-number {
-    font-size: 40px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .stat-card {
-    padding: 16px;
-  }
-  
-  .stat-info h3 {
-    font-size: 20px;
   }
 }

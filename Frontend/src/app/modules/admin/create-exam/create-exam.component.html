@@ -6,29 +6,119 @@
           <h4 class="mb-0">Create New Exam</h4>
         </div>
         <div class="card-body">
-          <div *ngIf="message" class="alert" [class.alert-success]="!isError" [class.alert-danger]="isError">
-            {{ message }}
-          </div>
-
-          <form (ngSubmit)="onSubmit()">
+          
+          <form [formGroup]="examForm" (ngSubmit)="onSubmit()">
+            
+            <!-- Title -->
             <div class="mb-3">
               <label class="form-label">Exam Title *</label>
-              <input type="text" class="form-control" [(ngModel)]="title" name="title" required>
+              <input type="text" 
+                     class="form-control" 
+                     formControlName="title"
+                     [class.is-invalid]="submitted && f['title'].invalid"
+                     placeholder="Enter exam title">
+              <div *ngIf="submitted && f['title'].invalid" class="invalid-feedback">
+                <div *ngIf="f['title'].errors?.['required']">Exam title is required</div>
+                <div *ngIf="f['title'].errors?.['minlength']">Title must be at least 3 characters</div>
+                <div *ngIf="f['title'].errors?.['maxlength']">Title cannot exceed 200 characters</div>
+              </div>
             </div>
 
+            <!-- Description -->
             <div class="mb-3">
               <label class="form-label">Description</label>
-              <textarea class="form-control" [(ngModel)]="description" name="description" rows="3"></textarea>
+              <textarea class="form-control" 
+                        formControlName="description"
+                        [class.is-invalid]="submitted && f['description'].invalid"
+                        rows="3"
+                        placeholder="Enter exam description"></textarea>
+              <div *ngIf="submitted && f['description'].invalid" class="invalid-feedback">
+                <div *ngIf="f['description'].errors?.['maxlength']">Description cannot exceed 1000 characters</div>
+              </div>
             </div>
 
+            <!-- Duration and Total Marks -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Duration (minutes) *</label>
-                <input type="number" class="form-control" [(ngModel)]="duration" name="duration" required min="1">
+                <input type="number" 
+                       class="form-control" 
+                       formControlName="durationInMinutes"
+                       [class.is-invalid]="submitted && (f['durationInMinutes'].invalid || examForm.errors?.['durationMismatch'])"
+                       placeholder="e.g., 60">
+                <div *ngIf="submitted && (f['durationInMinutes'].invalid || examForm.errors?.['durationMismatch'])" class="invalid-feedback">
+                  <div *ngIf="f['durationInMinutes'].errors?.['required']">Duration is required</div>
+                  <div *ngIf="f['durationInMinutes'].errors?.['min']">Must be at least 1 minute</div>
+                  <div *ngIf="f['durationInMinutes'].errors?.['max']">Cannot exceed 480 minutes (8 hours)</div>
+                  <div *ngIf="examForm.errors?.['durationMismatch']">
+                    ⚠️ Duration mismatch! The time between Start and End is 
+                    <strong>{{ examForm.errors?.['durationMismatch']?.actualDuration }}</strong> minutes, 
+                    but you entered <strong>{{ examForm.errors?.['durationMismatch']?.enteredDuration }}</strong> minutes.
+                  </div>
+                </div>
+                <small class="text-muted">Must match the time between Start and End</small>
               </div>
               <div class="col-md-6 mb-3">
                 <label class="form-label">Total Marks *</label>
-                <input type="number" class="form-control" [(ngModel)]="totalMarks" name="totalMarks" required min="1">
+                <input type="number" 
+                       class="form-control" 
+                       formControlName="totalMarks"
+                       [class.is-invalid]="submitted && f['totalMarks'].invalid"
+                       placeholder="e.g., 100">
+                <div *ngIf="submitted && f['totalMarks'].invalid" class="invalid-feedback">
+                  <div *ngIf="f['totalMarks'].errors?.['required']">Total marks is required</div>
+                  <div *ngIf="f['totalMarks'].errors?.['min']">Must be at least 1 mark</div>
+                  <div *ngIf="f['totalMarks'].errors?.['max']">Cannot exceed 1000 marks</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Start Time and End Time -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Start Time *</label>
+                <input type="datetime-local" 
+                       class="form-control" 
+                       formControlName="startTime"
+                       [min]="minDateTime"
+                       [class.is-invalid]="submitted && (f['startTime'].invalid || examForm.errors?.['endTimeBeforeStart'] || examForm.errors?.['durationMismatch'])"
+                       placeholder="Select start time">
+                <div *ngIf="submitted && (f['startTime'].invalid || examForm.errors?.['endTimeBeforeStart'] || examForm.errors?.['durationMismatch'])" class="invalid-feedback">
+                  <div *ngIf="f['startTime'].errors?.['required']">Start time is required</div>
+                  <div *ngIf="examForm.errors?.['endTimeBeforeStart']">End time must be after start time</div>
+                  <div *ngIf="examForm.errors?.['durationMismatch']">Duration must match the time range</div>
+                </div>
+                <small class="text-muted">When students can start the exam</small>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">End Time *</label>
+                <input type="datetime-local" 
+                       class="form-control" 
+                       formControlName="endTime"
+                       [min]="minDateTime"
+                       [class.is-invalid]="submitted && (f['endTime'].invalid || examForm.errors?.['endTimeBeforeStart'] || examForm.errors?.['durationMismatch'])"
+                       placeholder="Select end time">
+                <div *ngIf="submitted && (f['endTime'].invalid || examForm.errors?.['endTimeBeforeStart'] || examForm.errors?.['durationMismatch'])" class="invalid-feedback">
+                  <div *ngIf="f['endTime'].errors?.['required']">End time is required</div>
+                  <div *ngIf="examForm.errors?.['endTimeBeforeStart']">End time must be after start time</div>
+                  <div *ngIf="examForm.errors?.['durationMismatch']">Duration must match the time range</div>
+                </div>
+                <small class="text-muted">When the exam closes</small>
+              </div>
+            </div>
+
+            <!-- Live Duration Preview -->
+            <div class="mb-3" *ngIf="examForm.value.startTime && examForm.value.endTime">
+              <div class="alert alert-info">
+                <strong>📊 Time Range:</strong> 
+                {{ calculateTimeDifference(examForm.value.startTime, examForm.value.endTime) }} minutes
+                <span *ngIf="examForm.value.durationInMinutes">
+                  | <strong>Entered Duration:</strong> {{ examForm.value.durationInMinutes }} minutes
+                  <span *ngIf="calculateTimeDifference(examForm.value.startTime, examForm.value.endTime) === examForm.value.durationInMinutes" 
+                        class="text-success">Matches!</span>
+                  <span *ngIf="calculateTimeDifference(examForm.value.startTime, examForm.value.endTime) !== examForm.value.durationInMinutes" 
+                        class="text-danger">Mismatch!</span>
+                </span>
               </div>
             </div>
 
@@ -38,7 +128,7 @@
           </form>
 
           <div class="mt-3 text-center">
-            <a routerLink="/admin" class="btn btn-link">← Back to Dashboard</a>
+            <button class="btn btn-link" (click)="goBack()">← Back to Dashboard</button>
           </div>
         </div>
       </div>

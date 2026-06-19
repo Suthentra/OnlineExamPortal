@@ -6,7 +6,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-results',
-  templateUrl: './results.component.html',  // ← FIXED: was pointing to exam.component.html
+  templateUrl: './results.component.html',
   styleUrls: ['./results.component.css'],
   standalone: false
 })
@@ -20,7 +20,6 @@ export class ResultsComponent implements OnInit {
   sortDirection: string = 'desc';
   studentId: number;
   
-  // Modal properties
   showDetailModal: boolean = false;
   selectedResult: any = null;
   selectedAnswers: any[] = [];
@@ -47,13 +46,8 @@ export class ResultsComponent implements OnInit {
         this.toast.closeLoading();
         this.results = data || [];
         this.loading = false;
-        // In the loadResults method or wherever you display percentage
-this.results = data.map((result: any) => ({
-  ...result,
-  percentage: Number(result.percentage).toFixed(2)
-}));
+        
         if (this.results.length === 0) {
-          this.errorMessage = 'No results found. You haven\'t taken any exams yet.';
           this.toast.info('No results found');
         } else {
           this.toast.success(`Loaded ${this.results.length} exam results`);
@@ -114,13 +108,8 @@ this.results = data.map((result: any) => ({
 
   getAverageScore(): number {
     if (this.results.length === 0) return 0;
-    const total = this.results.reduce((sum, r) => sum + r.percentage, 0);
+    const total = this.results.reduce((sum, r) => sum + (r.percentage || 0), 0);
     return Math.round(total / this.results.length);
-  }
-
-  getPassRate(): number {
-    if (this.results.length === 0) return 0;
-    return Math.round((this.getPassCount() / this.results.length) * 100);
   }
 
   getSortIcon(field: string): string {
@@ -135,7 +124,6 @@ this.results = data.map((result: any) => ({
       this.sortField = field;
       this.sortDirection = 'asc';
     }
-    this.toast.info(`Sorting by ${field}`);
   }
 
   clearFilters() {
@@ -178,7 +166,7 @@ this.results = data.map((result: any) => ({
     this.selectedAnswers = [];
   }
 
-  async exportToCSV() {
+  exportToCSV() {
     if (this.filteredResults.length === 0) {
       this.toast.warning('No data to export');
       return;
@@ -187,11 +175,10 @@ this.results = data.map((result: any) => ({
     this.toast.showLoading('Preparing export...');
     
     try {
-      const headers = ['Exam Title', 'Score', 'Total Marks', 'Percentage', 'Status', 'Submitted Date'];
+      const headers = ['Exam Name', 'Score', 'Percentage', 'Status', 'Submitted Date'];
       const rows = this.filteredResults.map(r => [
         r.examTitle,
-        r.score,
-        r.totalMarks,
+        `${r.score}/${r.totalMarks}`,
         `${r.percentage}%`,
         r.isPassed ? 'Passed' : 'Failed',
         new Date(r.submittedAt).toLocaleString()
@@ -242,7 +229,7 @@ this.results = data.map((result: any) => ({
             <p>Generated on: ${new Date().toLocaleString()}</p>
             <table>
               <thead>
-                <tr><th>Exam Title</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr>
+                <tr><th>Exam Name</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr>
               </thead>
               <tbody>
                 ${this.filteredResults.map(r => `

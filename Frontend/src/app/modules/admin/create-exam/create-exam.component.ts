@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../shared/services/api.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -10,75 +11,153 @@ import { ToastService } from '../../../shared/services/toast.service';
   standalone: false
 })
 export class CreateExamComponent {
-  title = '';
-  description = '';
-  duration = 60;
-  totalMarks = 100;
-  message = '';
-  isError = false;
+  examForm: FormGroup;
   loading = false;
+  submitted = false;
+  minDateTime: string = '';
 
   constructor(
-    private api: ApiService, 
+    private fb: FormBuilder,
+    private api: ApiService,
     private router: Router,
     private toast: ToastService
-  ) {}
+  ) {
+    // Set minimum date to now (for datetime-local input)
+    const now = new Date();
+    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    this.minDateTime = localNow.toISOString().slice(0, 16);
+
+    this.examForm = this.fb.group({
+      title: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
+      description: ['', [Validators.maxLength(1000)]],
+      durationInMinutes: ['', [Validators.required, Validators.min(1), Validators.max(480)]],
+      totalMarks: ['', [Validators.required, Validators.min(1), Validators.max(1000)]],
+      startTime: ['', [Validators.required]],
+      endTime: ['', [Validators.required]]
+    }, {
+      // ===== ADD CUSTOM VALIDATORS =====
+      validators: [
+        this.endTimeAfterStartValidator,
+        this.durationMatchesTimeRangeValidator  // ← NEW VALIDATOR
+      ]
+    });
+  }
+
+  // ===== VALIDATOR 1: End Time must be after Start Time =====
+  endTimeAfterStartValidator(control: AbstractControl): ValidationErrors | null {
+    const startTime = control.get('startTime')?.value;
+    const endTime = control.get('endTime')?.value;
+    
+    if (startTime && endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      if (end <= start) {
+        return { endTimeBeforeStart: true };
+      }
+    }
+    return null;
+  }
+
+  // ===== VALIDATOR 2: Duration must match Start Time - End Time difference =====
+  durationMatchesTimeRangeValidator(control: AbstractControl): ValidationErrors | null {
+    const startTime = control.get('startTime')?.value;
+    const endTime = control.get('endTime')?.value;
+    const duration = control.get('durationInMinutes')?.value;
+    
+    if (startTime && endTime && duration) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      
+      // Calculate difference in minutes
+      const diffInMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+      
+      // Check if duration matches the time range (allow 1 minute tolerance)
+      if (Math.abs(diffInMinutes - duration) > 1) {
+        return { 
+          durationMismatch: true,
+          actualDuration: diffInMinutes,
+          enteredDuration: duration
+        };
+      }
+    }
+    return null;
+  }
+
+  get f() { return this.examForm.controls; }
 
   onSubmit() {
-    this.message = '';
-    this.isError = false;
-
-    if (!this.title) {
-      this.message = 'Exam title is required';
-      this.isError = true;
-      this.toast.warning('Exam title is required');
+    this.submitted = true;
+    
+    if (this.examForm.invalid) {
+      // Check for specific errors
+      if (this.examForm.errors?.['durationMismatch']) {
+        const actualDuration = this.examForm.errors['durationMismatch'].actualDuration;
+        const enteredDuration = this.examForm.errors['durationMismatch'].enteredDuration;
+        this.toast.warning(
+          `Duration mismatch! The time between Start and End is ${actualDuration} minutes, ` +
+          `but you entered ${enteredDuration} minutes. Please update the duration or the time range.`
+        );
+        return;
+      }
+      
+      if (this.examForm.errors?.['endTimeBeforeStart']) {
+        this.toast.warning('End time must be after start time');
+        return;
+      }
+      
+      this.toast.warning('Please fix all validation errors');
       return;
     }
 
-    if (!this.duration || this.duration <= 0) {
-      this.message = 'Duration must be greater than 0';
-      this.isError = true;
-      this.toast.warning('Duration must be greater than 0');
-      return;
-    }
+    // Additional validation for future date
+    const startTime = new Date(this.examForm.value.startTime);
+    const endTime = new Date(this.examForm.value.endTime);
+    const now = new Date();
 
-    if (!this.totalMarks || this.totalMarks <= 0) {
-      this.message = 'Total marks must be greater than 0';
-      this.isError = true;
-      this.toast.warning('Total marks must be greater than 0');
+    if (startTime <= now) {
+      this.toast.warning('Start time must be in the future');
       return;
     }
 
     this.loading = true;
 
     const examData = {
-      title: this.title,
-      description: this.description,
-      durationInMinutes: this.duration,
-      totalMarks: this.totalMarks,
-      startTime: new Date().toISOString(),
-      endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      title: this.examForm.value.title.trim(),
+      description: this.examForm.value.description?.trim() || '',
+      durationInMinutes: this.examForm.value.durationInMinutes,
+      totalMarks: this.examForm.value.totalMarks,
+      startTime: new Date(this.examForm.value.startTime).toISOString(),
+      endTime: new Date(this.examForm.value.endTime).toISOString()
     };
 
     this.api.createExam(examData).subscribe({
       next: (response: any) => {
-        this.message = 'Exam created successfully!';
-        this.isError = false;
         this.loading = false;
         this.toast.success('Exam created successfully!');
         setTimeout(() => {
           this.router.navigate(['/admin'], { fragment: 'exams' });
-        }, 2000);
+        }, 1500);
       },
       error: (err) => {
-        console.error('Create exam error:', err);
-        this.message = err.error?.message || 'Failed to create exam. Please try again.';
-        this.isError = true;
         this.loading = false;
-        this.toast.error(this.message);
+        this.toast.error(err.error?.message || 'Failed to create exam');
       }
     });
   }
+
+
+// ===== Helper: Calculate time difference in minutes =====
+calculateTimeDifference(startTime: string, endTime: string): number {
+  if (!startTime || !endTime) return 0;
+  
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  
+  if (end <= start) return 0;
+  
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+}
+
 
   goBack() {
     this.router.navigate(['/admin'], { fragment: 'exams' });

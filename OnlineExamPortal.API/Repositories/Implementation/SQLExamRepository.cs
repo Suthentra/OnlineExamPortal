@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using OnlineExamPortal.API.Models.Domain;
+using OnlineExamPortal.API.Models.DTOs.Result;
 using OnlineExamPortal.API.Repositories.Interface;
 using System.Data;
 
@@ -8,19 +9,19 @@ namespace OnlineExamPortal.API.Repositories.Implementation
     public class SQLExamRepository : IExamRepository
     {
         private readonly IConfiguration configuration;
-        private readonly string connectionString;  
+        private readonly string _connectionString;  // ← Use underscore naming convention
 
         public SQLExamRepository(IConfiguration configuration)
         {
             this.configuration = configuration;
-            connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");  // ← ADD THIS
+            _connectionString = configuration.GetConnectionString("OnlineExamPortalConnectionString");
         }
 
         public async Task<List<Exam>> GetAllAsync()
         {
             var exams = new List<Exam>();
 
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             string sql = "SELECT * FROM Exams ORDER BY Id DESC";
 
             using SqlCommand cmd = new SqlCommand(sql, conn);
@@ -50,7 +51,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task<Exam?> GetByIdAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_GetExamById", conn);
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@Id", id);
@@ -83,7 +84,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task CreateAsync(Exam exam)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_CreateExam", conn);
             cmd.CommandType = System.Data.CommandType.StoredProcedure;
 
@@ -101,7 +102,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task UpdateAsync(Exam exam)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_UpdateExam", conn);
             cmd.CommandType = CommandType.StoredProcedure;
 
@@ -120,7 +121,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task DeleteAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
             using (SqlTransaction transaction = conn.BeginTransaction())
@@ -129,18 +130,16 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                 {
                     // 1. Delete answers for questions of this exam
                     string deleteAnswersSql = @"
-                DELETE FROM Answers 
-                WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)
-            ";
+                        DELETE FROM Answers 
+                        WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)";
                     using SqlCommand cmdAnswers = new SqlCommand(deleteAnswersSql, conn, transaction);
                     cmdAnswers.Parameters.AddWithValue("@ExamId", id);
                     await cmdAnswers.ExecuteNonQueryAsync();
 
                     // 2. Delete options for questions of this exam
                     string deleteOptionsSql = @"
-                DELETE FROM Options 
-                WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)
-            ";
+                        DELETE FROM Options 
+                        WHERE QuestionId IN (SELECT Id FROM Questions WHERE ExamId = @ExamId)";
                     using SqlCommand cmdOptions = new SqlCommand(deleteOptionsSql, conn, transaction);
                     cmdOptions.Parameters.AddWithValue("@ExamId", id);
                     await cmdOptions.ExecuteNonQueryAsync();
@@ -157,11 +156,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                     cmdAttempts.Parameters.AddWithValue("@ExamId", id);
                     await cmdAttempts.ExecuteNonQueryAsync();
 
-                    // 5. DO NOT UPDATE TotalMarks - Remove this part!
-                    // The exam's total marks should remain as originally set
-                    // Only delete the exam itself
-
-                    // 6. Finally delete the exam
+                    // 5. Finally delete the exam
                     string deleteExamSql = "DELETE FROM Exams WHERE Id = @ExamId";
                     using SqlCommand cmdExam = new SqlCommand(deleteExamSql, conn, transaction);
                     cmdExam.Parameters.AddWithValue("@ExamId", id);
@@ -176,9 +171,10 @@ namespace OnlineExamPortal.API.Repositories.Implementation
                 }
             }
         }
+
         public async Task PublishAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_PublishExam", conn);
             cmd.CommandType = System.Data.CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@Id", id);
@@ -189,7 +185,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
 
         public async Task<bool> ExistsAsync(int id)
         {
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_ExamExists", conn);
             cmd.CommandType = System.Data.CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@Id", id);
@@ -203,7 +199,7 @@ namespace OnlineExamPortal.API.Repositories.Implementation
         {
             var exams = new List<Exam>();
 
-            using SqlConnection conn = new SqlConnection(connectionString);
+            using SqlConnection conn = new SqlConnection(_connectionString);
             using SqlCommand cmd = new SqlCommand("sp_GetPublishedExams", conn);
             cmd.CommandType = System.Data.CommandType.StoredProcedure;
 
@@ -229,6 +225,17 @@ namespace OnlineExamPortal.API.Repositories.Implementation
             }
 
             return exams;
+        }
+
+        // ===== ADD THIS METHOD =====
+        public async Task MarkResultsPublishedAsync(int examId)
+        {
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            string sql = "UPDATE Exams SET ResultsPublished = 1 WHERE Id = @ExamId";
+            using SqlCommand cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@ExamId", examId);
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
         }
     }
 }

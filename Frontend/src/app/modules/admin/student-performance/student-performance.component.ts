@@ -16,7 +16,8 @@ export class StudentPerformanceComponent implements OnInit {
   students: any[] = [];
   loading = true;
   searchTerm: string = '';
-  sortBy: string = 'percentage';
+  statusFilter: string = 'all';
+  sortField: string = 'percentage';
   sortDirection: string = 'desc';
 
   totalStudents: number = 0;
@@ -59,7 +60,6 @@ export class StudentPerformanceComponent implements OnInit {
     this.api.getExamResults(this.examId).subscribe({
       next: (data: any) => {
         this.toast.closeLoading();
-        // Round percentage to 2 decimal places
         this.students = (data || []).map((student: any) => ({
           ...student,
           percentage: Number(student.percentage).toFixed(2)
@@ -102,16 +102,22 @@ export class StudentPerformanceComponent implements OnInit {
 
     if (this.searchTerm) {
       filtered = filtered.filter(s => 
-        s.studentName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        s.studentEmail.toLowerCase().includes(this.searchTerm.toLowerCase())
+        s.studentName?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+        s.studentEmail?.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
     }
 
+    if (this.statusFilter === 'passed') {
+      filtered = filtered.filter(s => s.isPassed);
+    } else if (this.statusFilter === 'failed') {
+      filtered = filtered.filter(s => !s.isPassed);
+    }
+
     filtered.sort((a, b) => {
-      let aVal = a[this.sortBy];
-      let bVal = b[this.sortBy];
+      let aVal = a[this.sortField];
+      let bVal = b[this.sortField];
       
-      if (this.sortBy === 'percentage' || this.sortBy === 'score') {
+      if (this.sortField === 'percentage' || this.sortField === 'score') {
         aVal = Number(aVal);
         bVal = Number(bVal);
       }
@@ -127,18 +133,30 @@ export class StudentPerformanceComponent implements OnInit {
   }
 
   changeSort(column: string) {
-    if (this.sortBy === column) {
+    if (this.sortField === column) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
     } else {
-      this.sortBy = column;
+      this.sortField = column;
       this.sortDirection = 'desc';
     }
-    this.toast.info(`Sorting by ${column} (${this.sortDirection === 'asc' ? 'ascending' : 'descending'})`);
   }
 
   getSortIcon(column: string): string {
-    if (this.sortBy !== column) return 'fa-sort';
+    if (this.sortField !== column) return 'fa-sort';
     return this.sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+  }
+
+  filterStudents() {
+    // Trigger filter
+    this.filteredStudents;
+  }
+
+  clearFilters() {
+    this.searchTerm = '';
+    this.statusFilter = 'all';
+    this.sortField = 'percentage';
+    this.sortDirection = 'desc';
+    this.toast.info('All filters cleared');
   }
 
   viewStudentDetails(studentId: number, attemptId: number) {
@@ -146,7 +164,7 @@ export class StudentPerformanceComponent implements OnInit {
     this.router.navigate(['/admin/student-result', attemptId]);
   }
 
-  async exportToCSV() {
+  exportToCSV() {
     if (this.filteredStudents.length === 0) {
       this.toast.warning('No data to export');
       return;
@@ -181,11 +199,6 @@ export class StudentPerformanceComponent implements OnInit {
       console.error('Export error:', error);
       this.toast.error('Failed to export data');
     }
-  }
-
-  clearSearch() {
-    this.searchTerm = '';
-    this.toast.info('Search cleared');
   }
 
   goBack() {

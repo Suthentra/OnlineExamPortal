@@ -1,8 +1,10 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ApiService } from '../../../shared/services/api.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { Subject, forkJoin, of } from 'rxjs';
+import { map, catchError, finalize, takeUntil, tap } from 'rxjs/operators';
 
 interface Violation {
   attemptId: number;
@@ -40,7 +42,7 @@ interface StudentViolation {
   styleUrls: ['./admin-dashboard.component.css'],
   standalone: false
 })
-export class AdminDashboardComponent implements OnInit, AfterViewInit {
+export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   user: any;
   exams: any[] = [];
   students: any[] = [];
@@ -63,6 +65,8 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
   totalAttempts: number = 0;
   averageScore: number = 0;
   passRate: number = 0;
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private auth: AuthService,
@@ -92,13 +96,16 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   setActiveTab(tab: string) {
     this.activeTab = tab;
     this.router.navigate([], { fragment: tab, replaceUrl: true });
   }
 
-  // ===== LOGOUT WITH CONFIRMATION =====
-  
   async logout() {
     const confirmed = await this.toast.confirm(
       'Are you sure you want to logout?<br><br>You will need to login again to access the admin dashboard.',
@@ -112,25 +119,69 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadDashboardData() {
-    this.loadExams();
-    this.loadStudents();
-    this.loadAttempts();
-  }
+    const exams$ = this.api.getAllExams().pipe(catchError(() => of([])));
+    const users$ = this.api.getAllUsers().pipe(catchError(() => of([])));
+    const attempts$ = this.api.getAllAttempts().pipe(catchError(() => of([])));
 
-  loadExams() {
-    this.api.getAllExams().subscribe({
-      next: (data: any) => { 
-        this.exams = data; 
-        this.totalExams = data.length; 
-        this.loading = false;
-        this.toast.success(`Loaded ${data.length} exams`);
-      },
-      error: (err) => { 
-        console.error('Error loading exams:', err);
-        this.toast.error('Failed to load exams');
-        this.loading = false; 
-      }
-    });
+    forkJoin([exams$, users$, attempts$])
+      .pipe(
+        tap(() => this.toast.showLoading('Loading admin dashboard...')),
+        map((data: any) => {
+          const exams = data[0] || [];
+          const users = data[1] || [];
+          const attempts = data[2] || [];
+          
+          const students = users.filter((u: any) => u.userRole === 'Student');
+          const completedAttempts = attempts.filter((a: any) => a.status === 'Completed');
+          const totalScore = completedAttempts.reduce((sum: number, a: any) => sum + (a.percentage || 0), 0);
+          const avgScore = completedAttempts.length ? Math.round(totalScore / completedAttempts.length) : 0;
+          const passRate = completedAttempts.length ? 
+            Math.round((completedAttempts.filter((a: any) => a.isPassed).length / completedAttempts.length) * 100) : 0;
+          
+          return {
+            exams: exams,
+            students: students,
+            attempts: completedAttempts,
+            totalExams: exams.length,
+            totalStudents: students.length,
+            totalAttempts: completedAttempts.length,
+            averageScore: avgScore,
+            passRate: passRate
+          };
+        }),
+        catchError((err: any) => {
+          console.error('Error loading dashboard:', err);
+          this.toast.error('Failed to load dashboard');
+          return of({
+            exams: [],
+            students: [],
+            attempts: [],
+            totalExams: 0,
+            totalStudents: 0,
+            totalAttempts: 0,
+            averageScore: 0,
+            passRate: 0
+          });
+        }),
+        finalize(() => {
+          this.loading = false;
+          this.toast.closeLoading();
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (data: any) => {
+          this.exams = data.exams;
+          this.students = data.students;
+          this.attempts = data.attempts;
+          this.totalExams = data.totalExams;
+          this.totalStudents = data.totalStudents;
+          this.totalAttempts = data.totalAttempts;
+          this.averageScore = data.averageScore;
+          this.passRate = data.passRate;
+          this.toast.success(`Loaded ${data.totalExams} exams, ${data.totalStudents} students`);
+        }
+      });
   }
 
   loadStudents() {
@@ -138,7 +189,6 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
       next: (data: any) => { 
         this.students = data.filter((u: any) => u.userRole === 'Student'); 
         this.totalStudents = this.students.length;
-        this.toast.success(`Loaded ${this.students.length} students`);
       },
       error: (err: any) => {
         console.error('Error loading students:', err);
@@ -154,7 +204,6 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
         this.totalAttempts = this.attempts.length;
         const totalScore = this.attempts.reduce((sum: number, a: any) => sum + (a.percentage || 0), 0);
         this.averageScore = this.attempts.length ? Math.round(totalScore / this.attempts.length) : 0;
-        this.toast.success(`Loaded ${this.totalAttempts} attempts`);
       },
       error: (err: any) => {
         console.error('Error loading attempts:', err);
@@ -393,30 +442,48 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     this.router.navigate(['/admin/exam-results', id]); 
   }
   
+  // ===== FIXED: publishExam with ExpressionChangedError fix =====
   async publishExam(id: number) {
     const exam = this.exams.find(e => e.id === id);
-    const confirmed = await this.toast.confirm(
-      `Publish "${exam?.title}"? Students will be able to take this exam.`,
-      'Publish Exam'
-    );
     
-    if (confirmed) {
-      this.toast.showLoading('Publishing exam...');
-      this.api.publishExam(id).subscribe({
-        next: () => {
-          this.toast.closeLoading();
-          this.toast.success('Exam published successfully!');
-          this.loadExams();
-          this.activeTab = 'exams';
-        },
-        error: () => {
-          this.toast.closeLoading();
-          this.toast.error('Failed to publish exam');
-        }
-      });
+    // Check if exam can be published
+    if (exam?.startTime && new Date(exam.startTime) <= new Date()) {
+      const confirmed = await this.toast.confirm(
+        `⚠️ Warning: "${exam?.title}" has a start time in the past.\n\n` +
+        `Start Time: ${new Date(exam.startTime).toLocaleString()}\n` +
+        `Current Time: ${new Date().toLocaleString()}\n\n` +
+        `Do you still want to publish this exam?`,
+        'Publish Exam'
+      );
+      if (!confirmed) return;
+    } else {
+      const confirmed = await this.toast.confirm(
+        `Publish "${exam?.title}"? Students will be able to take this exam.`,
+        'Publish Exam'
+      );
+      if (!confirmed) return;
     }
+    
+    this.toast.showLoading('Publishing exam...');
+    this.api.publishExam(id).subscribe({
+      next: (response: any) => {
+        this.toast.closeLoading();
+        this.toast.success(response.message || 'Exam published successfully!');
+        this.loadExams();
+        // ===== FIX: Use setTimeout to avoid ExpressionChanged error =====
+        setTimeout(() => {
+          this.activeTab = 'exams';
+        }, 0);
+      },
+      error: (err) => {
+        this.toast.closeLoading();
+        console.error('Publish error:', err);
+        this.toast.error(err.error?.message || 'Failed to publish exam');
+      }
+    });
   }
 
+  // ===== FIXED: deleteExam with ExpressionChangedError fix =====
   async deleteExam(id: number, title: string) {
     const hasQuestions = this.exams.find(e => e.id === id)?.totalQuestions > 0;
     const confirmed = await this.toast.confirmExamDelete(title, hasQuestions);
@@ -428,7 +495,10 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
           this.toast.closeLoading();
           this.toast.success(`"${title}" has been deleted`);
           this.loadExams();
-          this.activeTab = 'exams';
+          // ===== FIX: Use setTimeout to avoid ExpressionChanged error =====
+          setTimeout(() => {
+            this.activeTab = 'exams';
+          }, 0);
         },
         error: () => {
           this.toast.closeLoading();
@@ -513,5 +583,18 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
 
   closeModal() { 
     this.showModal = false; 
+  }
+
+  loadExams() {
+    this.api.getAllExams().subscribe({
+      next: (data: any) => {
+        this.exams = data;
+        this.totalExams = data.length;
+      },
+      error: (err) => {
+        console.error('Error loading exams:', err);
+        this.toast.error('Failed to load exams');
+      }
+    });
   }
 }
