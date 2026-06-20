@@ -8,19 +8,32 @@
   <div class="exam-body">
     <h4>{{ exam.title }}</h4>
     <p>{{ exam.description | slice:0:80 }}{{ exam.description?.length > 80 ? '...' : '' }}</p>
-    
-    <!-- Schedule -->
-    <div class="exam-schedule">
+
+    <!-- Schedule (only when real exam schedule data exists) -->
+    <div class="exam-schedule" *ngIf="getStartTime() && getEndTime()">
       <div class="schedule-item">
         <i class="fas fa-calendar-alt"></i>
         <span>{{ getStartTime() | date:'MMM d, h:mm a' }} - {{ getEndTime() | date:'h:mm a' }}</span>
       </div>
       <div class="schedule-right">
-        <span class="duration-badge">
+        <span class="duration-badge" *ngIf="exam.durationInMinutes">
           <i class="fas fa-clock"></i> {{ exam.durationInMinutes }} min
         </span>
-        <span class="marks-badge">
-          <i class="fas fa-star"></i> {{ exam.totalMarks }}
+        <span class="marks-badge" *ngIf="exam.totalMarks || result?.totalMarks">
+          <i class="fas fa-star"></i> {{ exam.totalMarks || result?.totalMarks }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Fallback: when exam schedule data isn't available but it's a completed exam, show submission date + marks instead -->
+    <div class="exam-schedule" *ngIf="(!getStartTime() || !getEndTime()) && isAttempted">
+      <div class="schedule-item" *ngIf="result?.submittedAt">
+        <i class="fas fa-calendar-check"></i>
+        <span>Completed on {{ result.submittedAt | date:'MMM d, y, h:mm a' }}</span>
+      </div>
+      <div class="schedule-right">
+        <span class="marks-badge" *ngIf="result?.totalMarks">
+          <i class="fas fa-star"></i> {{ result.totalMarks }}
         </span>
       </div>
     </div>
@@ -44,7 +57,7 @@
         <i class="fas fa-times-circle"></i> ⛔ Expired
       </button>
     </ng-container>
-    
+
     <!-- ===== COMPLETED EXAMS (SAME CARD, DIFFERENT BUTTON) ===== -->
     <button class="btn-view-result" *ngIf="isAttempted" (click)="viewResult()">
       <i class="fas fa-eye"></i> View Result

@@ -6,6 +6,8 @@ using OnlineExamPortal.API.Repositories.Implementation;
 using OnlineExamPortal.API.Repositories.Interface;
 using OnlineExamPortal.API.Services;
 using System.Text;
+using OnlineExamPortal.API.Middleware;
+using OnlineExamPortal.API.Exceptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +99,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure pipeline
 if (app.Environment.IsDevelopment())
@@ -104,7 +107,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
 app.UseHttpsRedirection();
 app.UseCors("AllowAngularApp");
 app.UseAuthentication(); 

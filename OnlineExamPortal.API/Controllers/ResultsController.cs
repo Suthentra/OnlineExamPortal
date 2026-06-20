@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using OnlineExamPortal.API.Exceptions;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Result;
 using OnlineExamPortal.API.Repositories.Interface;
@@ -95,7 +96,7 @@ namespace OnlineExamPortal.API.Controllers
         {
             var exam = await _examRepository.GetByIdAsync(examId);
             if (exam == null)
-                return NotFound(new { message = "Exam not found" });
+                throw new NotFoundException("Exam", examId);
 
             var results = new List<object>();
 
@@ -148,7 +149,7 @@ namespace OnlineExamPortal.API.Controllers
         {
             var attempt = await _examAttemptRepository.GetAttemptByIdAsync(attemptId);
             if (attempt == null)
-                return NotFound(new { message = "Result not found" });
+                throw new NotFoundException("Result", attemptId);
 
             var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;

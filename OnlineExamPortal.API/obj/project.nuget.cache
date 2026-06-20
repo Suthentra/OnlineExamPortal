@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "MPRTJkvNa+k=",
+  "dgSpecHash": "kME0fQtO4c0=",
   "success": true,
-  "projectFilePath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\OnlineExamPortal.API.csproj",
+  "projectFilePath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\OnlineExamPortal.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\RBIN046\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\RBIN046\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
@@ -45,9 +45,9 @@
       "code": "NU1603",
       "level": "Warning",
       "message": "OnlineExamPortal.API depends on Swashbuckle.AspNetCore (>= 8.0.6) but Swashbuckle.AspNetCore 8.0.6 was not found. Swashbuckle.AspNetCore 8.1.0 was resolved instead.",
-      "projectPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\OnlineExamPortal.API.csproj",
+      "projectPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\OnlineExamPortal.API.csproj",
       "warningLevel": 1,
-      "filePath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\OnlineExamPortal.API.csproj",
+      "filePath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\OnlineExamPortal.API.csproj",
       "libraryId": "Swashbuckle.AspNetCore",
       "targetGraphs": [
         "net9.0"

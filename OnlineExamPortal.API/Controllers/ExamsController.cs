@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnlineExamPortal.API.Exceptions;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Exam;
 using OnlineExamPortal.API.Models.DTOs.Result;
@@ -43,12 +44,12 @@ namespace OnlineExamPortal.API.Controllers
 
             if (startTimeWithOffset >= endTimeWithOffset)
             {
-                return BadRequest(new { message = "End time must be after start time" });
+                throw new BadRequestException("End time must be after start time");
             }
 
             if (startTimeWithOffset <= DateTime.Now)
             {
-                return BadRequest(new { message = "Start time must be in the future" });
+                throw new BadRequestException("Start time must be in the future");
             }
 
             var exam = new Exam
@@ -143,10 +144,10 @@ namespace OnlineExamPortal.API.Controllers
                         exam.Description,
                         exam.TotalMarks,
                         exam.DurationInMinutes,
-                        StartTime = exam.StartTime,
-                        EndTime = exam.EndTime,
+                        exam.StartTime,
+                        exam.EndTime,
                         exam.IsPublished,
-                        exam.ResultsPublished
+                        exam.ResultsPublished,
                     })
                     .ToList();
 
@@ -165,22 +166,23 @@ namespace OnlineExamPortal.API.Controllers
         {
             var exam = await _examRepository.GetByIdAsync(id);
             if (exam == null)
-                return NotFound(new { message = "Exam not found" });
-
-            var examWithLocalTime = new
+            {
+                throw new NotFoundException("Exam", id);
+            }
+                var examWithLocalTime = new
             {
                 exam.Id,
                 exam.Title,
                 exam.Description,
                 exam.TotalMarks,
                 exam.DurationInMinutes,
-                StartTime = exam.StartTime,
-                EndTime = exam.EndTime,
+                exam.StartTime,
+                exam.EndTime,
                 exam.IsPublished,
                 exam.ResultsPublished,
                 exam.CreatedAt,
-                exam.UserId
-            };
+                exam.UserId,
+                };
 
             return Ok(examWithLocalTime);
         }
@@ -192,9 +194,11 @@ namespace OnlineExamPortal.API.Controllers
         {
             var exists = await _examRepository.ExistsAsync(id);
             if (!exists)
-                return NotFound(new { message = "Exam not found" });
+            {
+                throw new NotFoundException("Exam", id);
+            }
 
-            await _examRepository.DeleteAsync(id);
+                await _examRepository.DeleteAsync(id);
             return Ok(new { message = "Exam deleted successfully" });
         }
 
@@ -209,12 +213,12 @@ namespace OnlineExamPortal.API.Controllers
 
             if (exam.IsPublished)
             {
-                return BadRequest(new { message = "Exam is already published" });
+                throw new ConflictException("Exam is already published");
             }
 
             if (exam.StartTime >= exam.EndTime)
             {
-                return BadRequest(new { message = "Cannot publish exam. End time must be after start time." });
+                throw new BadRequestException("Cannot publish exam. End time must be after start time.");
             }
 
             await _examRepository.PublishAsync(id);

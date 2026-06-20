@@ -1866,11 +1866,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\OnlineExamPortal.API.csproj",
+      "projectUniqueName": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\OnlineExamPortal.API.csproj",
       "projectName": "OnlineExamPortal.API",
-      "projectPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\OnlineExamPortal.API.csproj",
+      "projectPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\OnlineExamPortal.API.csproj",
       "packagesPath": "C:\\Users\\RBIN046\\.nuget\\packages\\",
-      "outputPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.API\\obj\\",
+      "outputPath": "D:\\Projects\\OnlineExamPortal\\OnlineExamPortal.api\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

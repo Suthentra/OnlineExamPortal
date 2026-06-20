@@ -70,37 +70,31 @@ export class RegisterComponent {
   onEmailInput() {
     const emailControl = this.registerForm.get('email');
     
-    // Clear previous timeout
     if (this.emailCheckTimeout) {
       clearTimeout(this.emailCheckTimeout);
     }
 
-    // Only check if email has valid format
     if (emailControl?.valid && emailControl.value) {
-      // Remove alreadyTaken error if format becomes valid
       if (emailControl.hasError('alreadyTaken')) {
         const errors = { ...emailControl.errors };
         delete errors['alreadyTaken'];
         emailControl.setErrors(Object.keys(errors).length ? errors : null);
       }
       
-      // Debounce email check (wait 500ms after user stops typing)
       this.emailCheckTimeout = setTimeout(() => {
         this.checkEmailAvailability();
       }, 500);
     }
   }
 
-  // ===== CHECK EMAIL AVAILABILITY =====
+  // ===== CHECK EMAIL AVAILABILITY (FRONTEND VALIDATION) =====
   checkEmailAvailability() {
     const emailControl = this.registerForm.get('email');
     
-    // Only check if email is valid format
     if (!emailControl?.value || emailControl.invalid) {
       return;
     }
 
-    // If already marked as taken, check again
     this.checkingEmail = true;
     const email = emailControl.value.toLowerCase().trim();
 
@@ -109,8 +103,8 @@ export class RegisterComponent {
         this.checkingEmail = false;
         if (!response.available) {
           emailControl.setErrors({ ...emailControl.errors, alreadyTaken: true });
+          // This shows "Email already registered" below the field
         } else {
-          // Remove alreadyTaken error if exists
           if (emailControl.hasError('alreadyTaken')) {
             const errors = { ...emailControl.errors };
             delete errors['alreadyTaken'];
@@ -120,7 +114,49 @@ export class RegisterComponent {
       },
       error: () => {
         this.checkingEmail = false;
-        // Don't show error for availability check failure
+      }
+    });
+  }
+
+  // ===== ON SUBMIT - BACKEND WILL VALIDATE AGAIN =====
+  onSubmit() {
+    this.submitted = true;
+    
+    if (this.registerForm.invalid) {
+      this.toast.warning('Please fix all validation errors');
+      return;
+    }
+    
+    // ✅ Even if frontend validation passes, backend will check again
+    // If email was taken but somehow frontend missed it, backend will throw exception
+    this.loading = true;
+    
+    const registerData = {
+      fullName: this.registerForm.value.fullName.trim(),
+      email: this.registerForm.value.email.toLowerCase().trim(),
+      password: this.registerForm.value.password
+    };
+    
+    this.api.register(registerData).subscribe({
+      next: () => {
+        this.loading = false;
+        this.toast.success('Registration successful! Please login.');
+        this.router.navigate(['/login']);
+      },
+      error: (err) => {
+        this.loading = false;
+        
+        // ✅ Backend exception response will be shown here
+        // If backend throws ConflictException, it will show as toast
+        const errorMessage = err.error?.error || err.error?.message || 'Registration failed';
+        this.toast.error(errorMessage);
+        
+        // ✅ Also mark email field as invalid if it's an email error
+        if (err.error?.error?.includes('Email already registered')) {
+          this.registerForm.get('email')?.setErrors({ alreadyTaken: true });
+        }
+        
+        console.error('Registration error:', err);
       }
     });
   }
@@ -139,34 +175,5 @@ export class RegisterComponent {
 
   hasMinLength(password: string): boolean {
     return password?.length >= 8;
-  }
-
-  onSubmit() {
-    this.submitted = true;
-    
-    if (this.registerForm.invalid) {
-      this.toast.warning('Please fix all validation errors');
-      return;
-    }
-    
-    this.loading = true;
-    
-    const registerData = {
-      fullName: this.registerForm.value.fullName.trim(),
-      email: this.registerForm.value.email.toLowerCase().trim(),
-      password: this.registerForm.value.password
-    };
-    
-    this.api.register(registerData).subscribe({
-      next: () => {
-        this.loading = false;
-        this.toast.success('Registration successful! Please login.');
-        this.router.navigate(['/login']);
-      },
-      error: (err) => {
-        this.loading = false;
-        this.toast.error(err.error?.message || 'Registration failed');
-      }
-    });
   }
 }

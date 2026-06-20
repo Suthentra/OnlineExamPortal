@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OnlineExamPortal.API.Helpers;
+using OnlineExamPortal.API.Exceptions;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Auth;
 using OnlineExamPortal.API.Repositories.Interface;
+using OnlineExamPortal.API.Helpers;
 
 namespace OnlineExamPortal.API.Controllers
 {
@@ -23,20 +24,26 @@ namespace OnlineExamPortal.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
-            // Check if email already exists
+            Console.WriteLine($"📝 Register called for email: {request.Email}");
+
+            // ===== CHECK IF EMAIL EXISTS =====
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
             {
-                return BadRequest(new { message = "Email already registered. Please use a different email or login." });
+                Console.WriteLine($"🔴 Email already exists: {request.Email}");
+                // ✅ THROW exception - NOT return
+                throw new ConflictException("Email already registered. Please use a different email or login.");
             }
 
-            // Email format validation (backend)
+            // ===== VALIDATE EMAIL FORMAT =====
             if (!IsValidEmail(request.Email))
             {
-                return BadRequest(new { message = "Please enter a valid email address." });
+                Console.WriteLine($"🔴 Invalid email format: {request.Email}");
+                // ✅ THROW exception - NOT return
+                throw new BadRequestException("Please enter a valid email address.");
             }
 
-            // Create new user
+            // ===== CREATE USER =====
             var user = new User
             {
                 FullName = request.FullName,
@@ -47,6 +54,7 @@ namespace OnlineExamPortal.API.Controllers
             };
 
             await _userRepository.CreateAsync(user);
+            Console.WriteLine($"✅ User created successfully: {request.Email}");
 
             return Ok(new
             {
@@ -55,6 +63,58 @@ namespace OnlineExamPortal.API.Controllers
                 email = user.Email,
                 role = user.UserRole
             });
+        }
+
+        [HttpGet("check-email/{email}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckEmailAvailability(string email)
+        {
+            // This one is fine - it's supposed to return a response
+            var user = await _userRepository.GetByEmailAsync(email);
+            return Ok(new { available = user == null });
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
+        {
+            Console.WriteLine($"📝 Login called for email: {request.Email}");
+
+            var user = await _userRepository.GetByEmailAsync(request.Email);
+            if (user == null)
+            {
+                Console.WriteLine($"🔴 User not found: {request.Email}");
+                // ✅ THROW exception - NOT return
+                throw new UnauthorizedException("Invalid email or password");
+            }
+
+            if (user.PasswordHash != request.Password)
+            {
+                Console.WriteLine($"🔴 Invalid password for: {request.Email}");
+                // ✅ THROW exception - NOT return
+                throw new UnauthorizedException("Invalid email or password");
+            }
+
+            var token = _jwtHelper.GenerateToken(user.Id, user.Email, user.UserRole);
+
+            Console.WriteLine($"✅ Login successful: {request.Email}");
+            return Ok(new LoginResponseDto
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                UserRole = user.UserRole,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddHours(2)
+            });
+        }
+
+        // ===== TEST ENDPOINT - REMOVE AFTER TESTING =====
+        [HttpGet("test-exception")]
+        [AllowAnonymous]
+        public IActionResult TestException()
+        {
+            Console.WriteLine("🔴 Test exception triggered!");
+            throw new BadRequestException("TEST: This is a test exception!");
         }
 
         private bool IsValidEmail(string email)
@@ -68,46 +128,6 @@ namespace OnlineExamPortal.API.Controllers
             {
                 return false;
             }
-        }
-
-        [HttpGet("check-email/{email}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> CheckEmailAvailability(string email)
-        {
-            var user = await _userRepository.GetByEmailAsync(email);
-            return Ok(new { available = user == null });
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
-        {
-            // Find user by email
-            var user = await _userRepository.GetByEmailAsync(request.Email);
-            if (user == null)
-            {
-                return Unauthorized(new { message = "Invalid email or password" });
-            }
-
-            // DIRECT STRING COMPARISON - NO BCrypt
-            if (user.PasswordHash != request.Password)
-            {
-                return Unauthorized(new { message = "Invalid email or password" });
-            }
-
-            // Generate JWT token
-            var token = _jwtHelper.GenerateToken(user.Id, user.Email, user.UserRole);
-
-            var response = new LoginResponseDto
-            {
-                UserId = user.Id,
-                FullName = user.FullName,
-                Email = user.Email,
-                UserRole = user.UserRole,
-                Token = token,
-                ExpiresAt = DateTime.UtcNow.AddHours(2)
-            };
-
-            return Ok(response);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using OnlineExamPortal.API.Exceptions;
 using OnlineExamPortal.API.Models.DTOs.ExamAttempt;
 using OnlineExamPortal.API.Repositories.Interface;
 using OnlineExamPortal.API.Services;
@@ -46,14 +47,14 @@ namespace OnlineExamPortal.API.Controllers
 
             var exam = await _examRepository.GetByIdAsync(request.ExamId);
             if (exam == null)
-                return NotFound(new { message = "Exam not found" });
+                throw new NotFoundException("Exam", request.ExamId);
 
             if (!exam.IsPublished)
-                return BadRequest(new { message = "Exam is not published yet" });
+                throw new BadRequestException("Exam is not published yet");
 
             var hasAttempted = await _examAttemptRepository.HasStudentAttemptedExamAsync(studentId, request.ExamId);
             if (hasAttempted)
-                return BadRequest(new { message = "You have already attempted this exam" });
+                throw new ConflictException("You have already attempted this exam");
 
             var attempt = await _examAttemptRepository.StartExamAsync(studentId, request.ExamId);
             var questions = await _questionRepository.GetByExamIdAsync(request.ExamId);
@@ -178,7 +179,7 @@ namespace OnlineExamPortal.API.Controllers
 
                 if (status == null || status.ToString() != "InProgress")
                 {
-                    return BadRequest(new { message = "Exam attempt not found or already submitted" });
+                    throw new BadRequestException("Exam attempt not found or already submitted");
                 }
 
                 // Get correct option IDs from Options table

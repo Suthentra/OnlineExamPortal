@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnlineExamPortal.API.Exceptions;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Question;
 using OnlineExamPortal.API.Repositories.Interface;
@@ -87,21 +88,21 @@ namespace OnlineExamPortal.API.Controllers
             {
                 var exam = await _examRepository.GetByIdAsync(examId);
                 if (exam == null)
-                    return NotFound(new { message = "Exam not found" });
+                    throw new NotFoundException("Exam", examId);
 
                 // Validate
                 if (request.Options == null || request.Options.Count < 2)
-                    return BadRequest(new { message = "At least 2 options required" });
+                    throw new ValidationException("At least 2 options required", "Options", "Minimum 2 options required");
 
                 if (!request.Options.Any(o => o.IsCorrect))
-                    return BadRequest(new { message = "At least one correct answer required" });
+                    throw new ValidationException("At least one correct answer required", "CorrectAnswer", "Please mark at least one option as correct");
 
                 // For MCQ (Single Answer), ensure only ONE correct answer
                 if (request.QuestionType == "MCQ")
                 {
                     var correctCount = request.Options.Count(o => o.IsCorrect);
                     if (correctCount > 1)
-                        return BadRequest(new { message = "Single Answer questions can only have ONE correct option" });
+                        throw new ValidationException("Single Answer questions can only have ONE correct option", "CorrectAnswer", "Only one correct option allowed for MCQ");
                 }
 
                 // Create question
@@ -149,8 +150,7 @@ namespace OnlineExamPortal.API.Controllers
             {
                 var existingQuestion = await _questionRepository.GetQuestionWithOptionsAsync(id);
                 if (existingQuestion == null)
-                    return NotFound(new { message = "Question not found" });
-
+                    throw new NotFoundException("Question", id);
                 // Validate
                 if (request.Options == null || request.Options.Count < 2)
                     return BadRequest(new { message = "At least 2 options required" });

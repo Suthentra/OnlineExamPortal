@@ -15,38 +15,38 @@ export class ExamCardComponent {
   @Output() resultViewed = new EventEmitter<number>();
 
   // ===== GET START TIME =====
-  getStartTime(): Date {
-    if (!this.exam?.startTime) return new Date();
+  getStartTime(): Date | null {
+    if (!this.exam?.startTime) return null;
     return new Date(this.exam.startTime);
   }
 
-  getEndTime(): Date {
-    if (!this.exam?.endTime) return new Date();
+  getEndTime(): Date | null {
+    if (!this.exam?.endTime) return null;
     return new Date(this.exam.endTime);
   }
 
   // ===== CHECK IF EXAM IS COMING SOON =====
   isExamComingSoon(): boolean {
-    if (!this.exam) return false;
-    const now = new Date();
     const startTime = this.getStartTime();
+    if (!this.exam || !startTime) return false;
+    const now = new Date();
     return now < startTime;
   }
 
   // ===== CHECK IF EXAM IS EXPIRED =====
   isExamExpired(): boolean {
-    if (!this.exam) return false;
-    const now = new Date();
     const endTime = this.getEndTime();
+    if (!this.exam || !endTime) return false;
+    const now = new Date();
     return now > endTime;
   }
 
   // ===== CHECK IF EXAM IS AVAILABLE =====
   isExamAvailable(): boolean {
-    if (!this.exam) return false;
-    const now = new Date();
     const startTime = this.getStartTime();
     const endTime = this.getEndTime();
+    if (!this.exam || !startTime || !endTime) return false;
+    const now = new Date();
     return now >= startTime && now <= endTime;
   }
 
