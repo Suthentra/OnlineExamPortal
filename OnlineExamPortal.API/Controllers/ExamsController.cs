@@ -18,17 +18,19 @@ namespace OnlineExamPortal.API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly IExamAttemptRepository _examAttemptRepository;
-
+        private readonly ILoggingService _loggingService;
         public ExamsController(
             IExamRepository examRepository,
             IUserRepository userRepository,
             IEmailService emailService,
-            IExamAttemptRepository examAttemptRepository)
+            IExamAttemptRepository examAttemptRepository,
+            ILoggingService loggingService)
         {
             _examRepository = examRepository;
             _userRepository = userRepository;
             _emailService = emailService;
             _examAttemptRepository = examAttemptRepository;
+            _loggingService = loggingService;
         }
 
         // POST: api/Exams
@@ -37,7 +39,7 @@ namespace OnlineExamPortal.API.Controllers
         public async Task<IActionResult> CreateExam([FromBody] CreateExamRequestDto request)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-
+            _loggingService.LogUserAction(userId, "CreateExam", $"Title: {request.Title}");
             // Add 5.5 hours (India UTC+5:30) when saving
             var startTimeWithOffset = request.StartTime.AddHours(5).AddMinutes(30);
             var endTimeWithOffset = request.EndTime.AddHours(5).AddMinutes(30);
@@ -209,8 +211,9 @@ namespace OnlineExamPortal.API.Controllers
         {
             var exam = await _examRepository.GetByIdAsync(id);
             if (exam == null)
-                return NotFound(new { message = "Exam not found" });
+                throw new NotFoundException("Exam", id);
 
+            _loggingService.LogBusinessEvent("ExamPublished", $"Exam '{exam.Title}' (ID: {id}) published");
             if (exam.IsPublished)
             {
                 throw new ConflictException("Exam is already published");

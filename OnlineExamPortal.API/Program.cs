@@ -63,6 +63,9 @@ builder.Services.AddScoped<IExamAttemptRepository, SQLExamAttemptRepository>();
 builder.Services.AddScoped<IJwtHelper, JwtHelper>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IOptionRepository, SQLOptionRepository>();
+
+builder.Services.AddSingleton<ILoggingService, LoggingService>();
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 // Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "THIS_IS_MY_SUPER_SECRET_KEY_12345";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -99,6 +102,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure pipeline

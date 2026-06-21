@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OnlineExamPortal.API.Exceptions;
+using OnlineExamPortal.API.Helpers;
 using OnlineExamPortal.API.Models.Domain;
 using OnlineExamPortal.API.Models.DTOs.Auth;
 using OnlineExamPortal.API.Repositories.Interface;
-using OnlineExamPortal.API.Helpers;
+using OnlineExamPortal.API.Services;
 
 namespace OnlineExamPortal.API.Controllers
 {
@@ -14,24 +15,23 @@ namespace OnlineExamPortal.API.Controllers
     {
         private readonly IUserRepository _userRepository;
         private readonly IJwtHelper _jwtHelper;
-
-        public AuthController(IUserRepository userRepository, IJwtHelper jwtHelper)
+        private readonly ILoggingService _loggingService;
+        public AuthController(IUserRepository userRepository, IJwtHelper jwtHelper, ILoggingService loggingService)
         {
             _userRepository = userRepository;
             _jwtHelper = jwtHelper;
+            _loggingService = loggingService;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
-            Console.WriteLine($"📝 Register called for email: {request.Email}");
-
+            _loggingService.LogInformation($"Registration attempt for email: {request.Email}");
             // ===== CHECK IF EMAIL EXISTS =====
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
             {
-                Console.WriteLine($"🔴 Email already exists: {request.Email}");
-                // ✅ THROW exception - NOT return
+                _loggingService.LogSecurityEvent("RegistrationFailed", $"Email already registered: {request.Email}");
                 throw new ConflictException("Email already registered. Please use a different email or login.");
             }
 

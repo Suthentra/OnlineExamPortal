@@ -19,7 +19,7 @@
   <ItemGroup>
     <Folder Include="Data\" />
     <Folder Include="Models\DTOs\Answer\" />
-    <Folder Include="Services\" />
+    <Folder Include="Logs\" />
   </ItemGroup>
 
 </Project>
